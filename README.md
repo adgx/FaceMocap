@@ -6,6 +6,7 @@ An add-on for facial motion capture for Blender 4.5 and later verisions
 
 - [ ] Import/Check 3th party modules: OpenCV and Metapipe
 - [ ] Define an reference face armature
+- [ ] Posibility to create a facial mesh from Metapipe output
 - [ ] Check if just present on the scene the armature
 - [ ] Make a GUI for the add-on
 - [ ] Use openCV and Metapipe in way to obtain data from the FaceMesh model
@@ -20,3 +21,13 @@ An add-on for facial motion capture for Blender 4.5 and later verisions
 [https://docs.blender.org/api/4.2/info_overview.html](https://docs.blender.org/api/4.2/info_overview.html)
 
 [https://docs.blender.org/manual/en/4.5/advanced/scripting/addon_tutorial.html](https://docs.blender.org/manual/en/4.5/advanced/scripting/addon_tutorial.html)
+
+[https://www.gdcvault.com/play/1025223/Production-Level-Facial-Performance-Capture](https://www.gdcvault.com/play/1025223/Production-Level-Facial-Performance-Capture)
+
+[https://www.gdcvault.com/play/1029448/The-Facial-Animation-Pipeline-of](https://www.gdcvault.com/play/1029448/The-Facial-Animation-Pipeline-of)
+
+Yanlin Weng, Chen Cao, Qiming Hou, and Kun Zhou. 2014. Real-time facial animation mobile devices.
+
+C. Cao, Y. Weng, S. Lin, K. Zhou, 3D Shape Regression for Real-time Facial Animation.
+
+## Notes
