@@ -2,6 +2,7 @@ import bpy
 import typing 
 import inspect 
 import importlib
+import pkgutil
 from pathlib import Path
 
 __all__ = (
@@ -10,7 +11,7 @@ __all__ = (
     "unregister",
 )
 
-blender_verison = bpy.app.version
+blender_version = bpy.app.version
 
 modules = None
 ordered_classes = None
