@@ -1,1 +1,6 @@
 /__pycache__
+/.vscode
+/site-packages
+/gui/__pycache__
+/core/__pycache__
+/operators/__pycache__

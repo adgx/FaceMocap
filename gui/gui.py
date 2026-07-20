@@ -17,3 +17,8 @@ class FACEMOCAP_PT_main_panel(bpy.types.Panel):
         
         # bottone che chiama operators.py
         layout.operator("facemocap.create_armature", text="Genera Armatura Facciale", icon='BONE_DATA')
+
+        layout.separator()
+        
+        # Bottone per accendere la webcam e avviare il tracking
+        layout.operator("facemocap.start_capture", text="Avvia Motion Capture", icon='PLAY')
