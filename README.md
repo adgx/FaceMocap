@@ -1,10 +1,10 @@
 # FaceMocap
 
-An add-on for facial motion capture for Blender 4.5 and later verisions
+An add-on for facial motion capture for Blender 4.2 and later verisions
 
 ## To-do list
 
-- [ ] Import/Check 3th party modules: OpenCV and Metapipe
+- [ ] Import/Check 3rd party modules: OpenCV and Metapipe
 - [ ] Define an reference face armature
 - [ ] Posibility to create a facial mesh from Metapipe output
 - [ ] Check if just present on the scene the armature
