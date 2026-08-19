@@ -23,12 +23,19 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
                 landmarks = results.multi_face_landmarks[0].landmark
                 
                 arm_obj = bpy.data.objects.get("FaceMocap_Rig")
-                if arm_obj and arm_obj.type == 'ARMATURE':
-                    
+                
+                if not arm_obj and context.active_object and context.active_object.type == 'ARMATURE':
+                    arm_obj = context.active_object
+                
+                if arm_obj:
                     if context.active_object != arm_obj:
+                        bpy.ops.object.select_all(action='DESELECT')
+                        arm_obj.select_set(True)
                         context.view_layer.objects.active = arm_obj
+                        
                     if context.mode != 'POSE':
                         bpy.ops.object.mode_set(mode='POSE')
+                    
 
                     bone_map = {
                         "Head": (1, None),            # Punta del naso

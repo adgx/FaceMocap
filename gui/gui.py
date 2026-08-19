@@ -11,14 +11,25 @@ class FACEMOCAP_PT_main_panel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
-        layout.label(text="Sistema pronto", icon='OUTLINER_OB_ARMATURE')
+        # Importazione Modello
+        box_model = layout.box()
+        box_model.label(text="1. Modello 3D", icon='MESH_MONKEY')
+        box_model.operator("facemocap.import_custom_model", text="Importa Modello", icon='IMPORT')
         
-        layout.separator()
+        # Setup dell'Armatura
+        box_setup = layout.box()
+        box_setup.label(text="2. Setup Struttura", icon='OUTLINER_OB_ARMATURE')
         
-        # bottone che chiama operators.py
-        layout.operator("facemocap.create_armature", text="Genera Armatura Facciale", icon='BONE_DATA')
-
-        layout.separator()
+        # Generatore Armatura Standard
+        box_setup.operator("facemocap.create_armature", text="Genera Armatura Base", icon='BONE_DATA')
         
-        # Bottone per accendere la webcam e avviare il tracking
-        layout.operator("facemocap.start_capture", text="Avvia Motion Capture", icon='PLAY')
+        # Generatore Armatura adattata al modello
+        box_setup.operator("facemocap.create_adaptive_armature", text="Genera Armatura su Modello", icon='ARMATURE_DATA')
+        
+        # Operatore manuale per collegare i pesi 
+        box_setup.operator("facemocap.bind_model", text="Collega Manualmente", icon='LINKED')
+        
+        # Motion Capture
+        box_mocap = layout.box()
+        box_mocap.label(text="3. Animazione", icon='ANIM')
+        box_mocap.operator("facemocap.start_capture", text="Avvia Motion Capture", icon='PLAY')
