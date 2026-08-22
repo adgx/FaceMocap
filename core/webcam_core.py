@@ -1,22 +1,15 @@
-import sys
-from pathlib import Path
-
 import cv2
 import mediapipe as mp
 
+
 class FaceTracker:
     def __init__(self):
-
-        self.mp_face_mesh = mp.solutions.face_mesh
-        self.face_mesh = self.mp_face_mesh.FaceMesh(
+        self.face_mesh = mp.solutions.face_mesh.FaceMesh(
             max_num_faces=1,            # da impostare il numero di facce da elaborare(possiamo lasciare a 1)
             refine_landmarks=True,      # punti più dettagliati per occhi e bocca
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5
         )
-        self.mp_drawing = mp.solutions.drawing_utils
-        self.mp_drawing_styles = mp.solutions.drawing_styles
-
         self.cap = None
 
     def start(self):
@@ -27,54 +20,28 @@ class FaceTracker:
             return False
         return True
 
-    def read_frame(self):
-        """Legge un singolo frame, lo processa e restituisce i dati."""
+    def read_landmarks(self):
+        """(landmark del primo viso, aspect ratio del frame), o None.
+
+        None copre tutti i casi in cui non c'e' niente da applicare: frame non
+        letto, nessun viso riconosciuto. Chi chiama fa un solo controllo.
+        """
         success, image = self.cap.read()
         if not success:
-            return None, None
+            return None
 
         # MediaPipe vuole immagini in RGB
-        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        
-        results = self.face_mesh.process(image_rgb)
+        results = self.face_mesh.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        if not results.multi_face_landmarks:
+            return None
 
-        if results.multi_face_landmarks:
-            for face_landmarks in results.multi_face_landmarks:
-                self.mp_drawing.draw_landmarks(
-                    image=image,
-                    landmark_list=face_landmarks,
-                    connections=self.mp_face_mesh.FACEMESH_TESSELATION,
-                    landmark_drawing_spec=None,
-                    connection_drawing_spec=self.mp_drawing_styles.get_default_face_mesh_tesselation_style()
-                )
-
-        return image, results
+        height, width = image.shape[:2]
+        aspect = width / height if height else 1.0
+        return results.multi_face_landmarks[0].landmark, aspect
 
     def stop(self):
-        """Rilascia la webcam e chiude le finestre."""
+        """Rilascia la webcam."""
+        # Niente cv2.destroyAllWindows(): finestre non se ne aprono piu'.
         if self.cap:
             self.cap.release()
-        cv2.destroyAllWindows()
-
-
-#per test
-if __name__ == "__main__":
-    ADDON_DIR = Path(__file__).parent.parent 
-    LIB_DIR = ADDON_DIR / "site-packages"
-    if str(LIB_DIR) not in sys.path:
-        sys.path.insert(0, str(LIB_DIR))
-
-    tracker = FaceTracker()
-    if tracker.start():
-        print("Premi 'q' sulla finestra del video per uscire.")
-        while True:
-            frame, results = tracker.read_frame()
-            if frame is None:
-                break
-            
-            cv2.imshow("FaceMocap - Debug Webcam", frame)
-            
-            if cv2.waitKey(5) & 0xFF == ord('q'):
-                break
-                
-        tracker.stop()
+            self.cap = None
