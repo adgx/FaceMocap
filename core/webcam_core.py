@@ -1,3 +1,5 @@
+import sys
+from pathlib import Path
 import time
 import numpy as np
 import cv2
@@ -102,16 +104,12 @@ class FaceTracker:
             print("Errore: impossibile aprire la webcam")
             return False
         return True
-
-    def read_landmarks(self):
-        """(landmark del primo viso, aspect ratio del frame), o None.
-
-        None copre tutti i casi in cui non c'e' niente da applicare: frame non
-        letto, nessun viso riconosciuto. Chi chiama fa un solo controllo.
-        """
+    
+    def read_frame(self):
+        """Legge un singolo frame, lo processa e restituisce i dati."""
         success, image = self.cap.read()
         if not success:
-            return None
+            return None, None
 
         
         
@@ -131,15 +129,27 @@ class FaceTracker:
         #            landmark_drawing_spec=None,
         #            connection_drawing_spec=self.mp_drawing_styles.get_default_face_mesh_tesselation_style()
         #        )
-        #new on main
-        #if not results.multi_face_landmarks:
-        #    return None
-#
-        #height, width = image.shape[:2]
-        #aspect = width / height if height else 1.0
-        #return results.multi_face_landmarks[0].landmark, aspect
-        #results = None
+        results = None
         return image, results
+
+    def read_landmarks(self):
+        """(landmark del primo viso, aspect ratio del frame), o None.
+
+        None copre tutti i casi in cui non c'e' niente da applicare: frame non
+        letto, nessun viso riconosciuto. Chi chiama fa un solo controllo.
+        """
+        success, image = self.cap.read()
+        if not success:
+            return None
+
+        # MediaPipe vuole immagini in RGB
+        results = self.face_mesh.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        if not results.multi_face_landmarks:
+            return None
+
+        height, width = image.shape[:2]
+        aspect = width / height if height else 1.0
+        return results.multi_face_landmarks[0].landmark, aspect
 
     def stop(self) -> None:
         """Rilascia la webcam e chiude le finestre."""
