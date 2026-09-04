@@ -5,11 +5,12 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
     """Avvia la motion capture facciale in background"""
     bl_idname = "facemocap.start_capture"
     bl_label = "Avvia Motion Capture"
+    bl_description = "Creation of the armatrue or the motion capture"
     
     _timer = None
     _tracker = None
     
-    def modal(self, context, event):
+    def modal(self, context, event) -> set[str]:
         #ESC o Tasto Destro per fermare la cattura
         if event.type in {'RIGHTMOUSE', 'ESC'}:
             self.cancel(context)
@@ -21,15 +22,17 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             
             if results and results.multi_face_landmarks:
                 landmarks = results.multi_face_landmarks[0].landmark
-                
+                #retriave the armature 
                 arm_obj = bpy.data.objects.get("FaceMocap_Rig")
+                #check
                 if arm_obj and arm_obj.type == 'ARMATURE':
-                    
+                    #set active the armature
                     if context.active_object != arm_obj:
                         context.view_layer.objects.active = arm_obj
+                    #go to the POSE mode
                     if context.mode != 'POSE':
                         bpy.ops.object.mode_set(mode='POSE')
-
+                    #bone map da migliorare, bisogna aggiungere più ossa
                     bone_map = {
                         "Head": (1, None),            # Punta del naso
                         "Jaw": (152, 1),              # Mento (relativo al naso)
