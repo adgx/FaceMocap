@@ -1,6 +1,3 @@
-import sys
-from pathlib import Path
-
 import time
 import numpy as np
 import cv2
@@ -63,6 +60,7 @@ def result_cb(result: FaceLandmarkerResult, output_image: mp.Image, timestamp_ms
     print('face landmarker result: {}'.format(result))
     FaceTracker.result = result
 
+
 class FaceTracker:
     
     result: FaceLandmarkerResult = None
@@ -105,11 +103,15 @@ class FaceTracker:
             return False
         return True
 
-    def read_frame(self):
-        """Legge un singolo frame, lo processa e restituisce i dati."""
+    def read_landmarks(self):
+        """(landmark del primo viso, aspect ratio del frame), o None.
+
+        None copre tutti i casi in cui non c'e' niente da applicare: frame non
+        letto, nessun viso riconosciuto. Chi chiama fa un solo controllo.
+        """
         success, image = self.cap.read()
         if not success:
-            return None, None
+            return None
 
         
         
@@ -129,7 +131,14 @@ class FaceTracker:
         #            landmark_drawing_spec=None,
         #            connection_drawing_spec=self.mp_drawing_styles.get_default_face_mesh_tesselation_style()
         #        )
-        results = None
+        #new on main
+        #if not results.multi_face_landmarks:
+        #    return None
+#
+        #height, width = image.shape[:2]
+        #aspect = width / height if height else 1.0
+        #return results.multi_face_landmarks[0].landmark, aspect
+        #results = None
         return image, results
 
     def stop(self) -> None:
