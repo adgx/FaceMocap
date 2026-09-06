@@ -5,7 +5,6 @@ bl_info = {
     "category": "Animation",
 }
 
-
 import bpy
 import subprocess
 import importlib
@@ -21,39 +20,39 @@ if str(LIB_DIR) not in sys.path:
  
  
 def _run(cmd):
-    print(f"FaceMocap: eseguo -> {' '.join(cmd)}")
+    print(f"FaceMocap: runs -> {' '.join(cmd)}")
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.stdout:
         print(result.stdout)
     if result.stderr:
         print(result.stderr)
     if result.returncode != 0:
-        print(f"FaceMocap: ATTENZIONE, comando fallito con codice {result.returncode}: {' '.join(cmd)}")
+        print(f"FaceMocap: Warning, command failed with exit code {result.returncode}: {' '.join(cmd)}")
     return result.returncode == 0
 
 #installa le dipendenze se non sono già installate
 def install_dependencies():
     python_exe = sys.executable
-    print(f"FaceMocap: uso l'interprete Python -> {python_exe}")
-    print(f"FaceMocap: cartella dipendenze locali -> {LIB_DIR}")
+    print(f"FaceMocap: using Python interpreter -> {python_exe}")
+    print(f"FaceMocap: local dependencies folder -> {LIB_DIR}")
     missing_packages = []
  
     try:
         import cv2
-        print("FaceMocap: cv2 già presente, versione", cv2.__version__)
+        print(f"FaceMocap: cv2 version={cv2.__version__} detected")
     except ImportError as e:
-        print(f"FaceMocap: cv2 non trovato ({e})")
+        print(f"FaceMocap: cv2 not found ({e})")
         missing_packages.append("opencv-python==4.9.0.80")
  
     try:
         import mediapipe
-        print("FaceMocap: mediapipe già presente, versione", mediapipe.__version__)
+        print(f"FaceMocap: mediapipe version={mediapipe.__version__} detected")
     except ImportError as e:
-        print(f"FaceMocap: mediapipe non trovato ({e})")
-        missing_packages.append("mediapipe==0.10.11")
+        print(f"FaceMocap: mediapipe not found ({e})")
+        missing_packages.append("mediapipe==1.0.1")
  
     if missing_packages:
-        print(f"FaceMocap: Installazione automatica di {missing_packages} in {LIB_DIR}. Attendere...")
+        print(f"FaceMocap: Installing {missing_packages} in {LIB_DIR}. Wait...")
         ok = _run([python_exe, "-m", "ensurepip"])
         ok = _run([python_exe, "-m", "pip", "install", "--upgrade", "pip"]) and ok
         ok = _run([
@@ -63,18 +62,18 @@ def install_dependencies():
         ]) and ok
  
         if not ok:
-            print("FaceMocap: ERRORE - uno o più comandi di installazione sono falliti. Vedi output sopra.")
+            print("FaceMocap: ERROR - one or more installation commands failed. See the output above.")
         else:
-            print("FaceMocap: Installazione dipendenze completata con successo.")
+            print("FaceMocap: Dependencies installed successfully.")
  
         importlib.invalidate_caches()
  
         for pkg_import, pkg_name in [("cv2", "opencv-python"), ("mediapipe", "mediapipe")]:
             try:
                 importlib.import_module(pkg_import)
-                print(f"FaceMocap: verifica OK, '{pkg_import}' importabile dopo l'installazione.")
+                print(f"FaceMocap: Verification OK, '{pkg_import}' can be imported after installation.")
             except ImportError as e:
-                print(f"FaceMocap: verifica FALLITA per '{pkg_import}' ({pkg_name}): {e}")
+                print(f"FaceMocap: Verification FAILED for '{pkg_import}' ({pkg_name}): {e}")
 
 def register():
     install_dependencies()

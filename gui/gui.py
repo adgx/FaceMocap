@@ -1,6 +1,5 @@
 import bpy
 
-
 class FACEMOCAP_PT_main_panel(bpy.types.Panel):
     """Crea un Pannello nella barra laterale (N) della Vista 3D
        Pannel on View 3D

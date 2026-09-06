@@ -3,7 +3,6 @@ import bpy
 from ..core.config import FACE_MAPPING
 from ..core.rig import RIG_NAME, create_bones
 
-
 class FACEMOCAP_OT_create_armature(bpy.types.Operator):
     """Genera l'armatura facciale di riferimento per il motion capture"""
     bl_idname = "facemocap.create_armature"
@@ -37,5 +36,23 @@ class FACEMOCAP_OT_create_armature(bpy.types.Operator):
         arm_obj.show_in_front = True
 
         self.report({'INFO'}, "Armatura generata con %d ossa!" % len(FACE_MAPPING))
+
+        return {'FINISHED'}
+
+class FACEMOCAP_OT_create_advance_armature(bpy.types.Operator):
+    """Genera l'armatura facciale di riferimento per il motion capture
+       Generate the advance facial armature
+    """
+    bl_idname = "facemocap.create_advance_armature"
+    bl_label = "Generate Advance Facial Armature"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        #create the collection
+        parent_collection = context.collection
+        new_collection = bpy.data.collections.new("Facemocap-Facial_rig")
+        parent_collection.children.link(new_collection)
+
+        self.report({'INFO'}, "Armatura generata")
 
         return {'FINISHED'}
