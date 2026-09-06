@@ -170,7 +170,7 @@ class FaceTracker:
 
     def __init__(self):
         #set the model's path
-        self.model_path = "./face_landmarker_v2.task"
+        self.model_path = str(MODEL_DIR / MODEL_NAME)
         
         #alias time
         BaseOptions = mp.tasks.BaseOptions
