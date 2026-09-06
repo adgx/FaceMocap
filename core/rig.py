@@ -3,7 +3,8 @@ import bpy
 from .config import FACE_MAPPING, ROTATION_BONES
 
 RIG_NAME = "FaceMocap_Rig"
-
+ADVANCED_RIG_NAME = "RIG-FaceMocap_advanced_face"
+LANDMARKS_RIG_NAME = "RIG-Landmarks"
 
 def find_rig(context=None):
     """L'armatura del rig, o None. Cercata per nome o per armatura attiva"""

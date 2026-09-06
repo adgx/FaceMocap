@@ -13,6 +13,55 @@ from mediapipe.tasks.python.vision import drawing_utils
 from mediapipe.tasks.python.vision import drawing_styles
 
 #utils stuff
+
+class Debug:
+    SHOW_ALL: bool = False 
+    SHOW_LANDMARK_LIPS: bool = False
+    SHOW_LANDMARK_LEFT_EYE: bool = False
+    SHOW_LANDMARK_LEFT_EYEBROW: bool = False
+    SHOW_LANDMARK_LEFT_IRIS: bool = False
+    SHOW_LANDMARK_RIGHT_EYE: bool = False
+    SHOW_LANDMARK_RIGHT_EYEBROW: bool = False
+    SHOW_LANDMARK_RIGHT_IRIS: bool = False
+    SHOW_LANDMARK_FACE_OVAL: bool = False
+    SHOW_LANDMARK_TASSELATION: bool = True
+
+LANDMARKERS_INDEX_LIPS: list[int] = list(dict.fromkeys( idx 
+                                                        for connession in vision.FaceLandmarksConnections.FACE_LANDMARKS_LIPS
+                                                        for idx in (connession.start, connession.end)))
+
+LANDMARKERS_INDEX_LEFT_EYE: list[int] = list(dict.fromkeys( idx 
+                                                        for connession in vision.FaceLandmarksConnections.FACE_LANDMARKS_LEFT_EYE
+                                                        for idx in (connession.start, connession.end)))
+
+LANDMARKERS_INDEX_LEFT_EYEBROW: list[int] = list(dict.fromkeys( idx 
+                                                        for connession in vision.FaceLandmarksConnections.FACE_LANDMARKS_LEFT_EYEBROW
+                                                        for idx in (connession.start, connession.end)))
+
+LANDMARKERS_INDEX_LEFT_IRIS: list[int] = list(dict.fromkeys( idx 
+                                                        for connession in vision.FaceLandmarksConnections.FACE_LANDMARKS_LEFT_IRIS
+                                                        for idx in (connession.start, connession.end)))
+
+LANDMARKERS_INDEX_RIGHT_EYE: list[int] = list(dict.fromkeys( idx 
+                                                        for connession in vision.FaceLandmarksConnections.FACE_LANDMARKS_RIGHT_EYE
+                                                        for idx in (connession.start, connession.end)))
+
+LANDMARKERS_INDEX_RIGHT_EYEBROW: list[int] = list(dict.fromkeys( idx 
+                                                        for connession in vision.FaceLandmarksConnections.FACE_LANDMARKS_RIGHT_EYEBROW
+                                                        for idx in (connession.start, connession.end)))
+
+LANDMARKERS_INDEX_RIGHT_IRIS: list[int] = list(dict.fromkeys( idx 
+                                                        for connession in vision.FaceLandmarksConnections.FACE_LANDMARKS_RIGHT_IRIS
+                                                        for idx in (connession.start, connession.end)))
+
+LANDMARKERS_INDEX_FACE_OVAL: list[int] = list(dict.fromkeys( idx 
+                                                        for connession in vision.FaceLandmarksConnections.FACE_LANDMARKS_FACE_OVAL
+                                                        for idx in (connession.start, connession.end)))
+
+LANDMARKERS_INDEX_TASSELATION: list[int] = list(dict.fromkeys( idx 
+                                                        for connession in vision.FaceLandmarksConnections.FACE_LANDMARKS_TESSELATION
+                                                        for idx in (connession.start, connession.end)))
+
 def curr_ms_time() -> int:
     return round(time.time() * 1000)
 
@@ -26,35 +75,87 @@ def draw_landmarks_on_image(rgb_image, detection_result):
     for idx in range(len(face_landmarks_list)):
         face_landmarks = face_landmarks_list[idx]
 
-        #draw face landmarks
-        drawing_utils.draw_landmarks(
-            image=annotated_image,
-            landmark_list=face_landmarks,
-            connections=vision.FaceLandmarksConnections.FACE_LANDMARKS_TESSELATION,
-            landmark_drawing_spec=None,
-            connection_drawing_spec=drawing_styles.get_default_face_mesh_tesselation_style())
+        if Debug.SHOW_ALL:
+            #draw face landmarks
+            drawing_utils.draw_landmarks(
+                image=annotated_image,
+                landmark_list=face_landmarks,
+                connections=vision.FaceLandmarksConnections.FACE_LANDMARKS_TESSELATION,
+                landmark_drawing_spec=None,
+                connection_drawing_spec=drawing_styles.get_default_face_mesh_tesselation_style())
+
+            drawing_utils.draw_landmarks(
+                image=annotated_image,
+                landmark_list=face_landmarks,
+                connections=vision.FaceLandmarksConnections.FACE_LANDMARKS_CONTOURS,
+                landmark_drawing_spec=None,
+                connection_drawing_spec=drawing_styles.get_default_face_mesh_contours_style())
+
+            drawing_utils.draw_landmarks(
+                image=annotated_image,
+                landmark_list=face_landmarks,
+                connections=vision.FaceLandmarksConnections.FACE_LANDMARKS_LEFT_IRIS,
+                landmark_drawing_spec=None,
+                connection_drawing_spec=drawing_styles.get_default_face_mesh_iris_connections_style())
+
+            drawing_utils.draw_landmarks(
+                image=annotated_image,
+                landmark_list=face_landmarks,
+                connections=vision.FaceLandmarksConnections.FACE_LANDMARKS_RIGHT_IRIS,
+                landmark_drawing_spec=None,
+                connection_drawing_spec=drawing_styles.get_default_face_mesh_iris_connections_style())
         
-        drawing_utils.draw_landmarks(
-            image=annotated_image,
-            landmark_list=face_landmarks,
-            connections=vision.FaceLandmarksConnections.FACE_LANDMARKS_CONTOURS,
-            landmark_drawing_spec=None,
-            connection_drawing_spec=drawing_styles.get_default_face_mesh_contours_style())
-
-        drawing_utils.draw_landmarks(
-            image=annotated_image,
-            landmark_list=face_landmarks,
-            connections=vision.FaceLandmarksConnections.FACE_LANDMARKS_LEFT_IRIS,
-            landmark_drawing_spec=None,
-            connection_drawing_spec=drawing_styles.get_default_face_mesh_iris_connections_style())
-
-        drawing_utils.draw_landmarks(
-            image=annotated_image,
-            landmark_list=face_landmarks,
-            connections=vision.FaceLandmarksConnections.FACE_LANDMARKS_RIGHT_IRIS,
-            landmark_drawing_spec=None,
-            connection_drawing_spec=drawing_styles.get_default_face_mesh_iris_connections_style())
-    
+        if Debug.SHOW_LANDMARK_LIPS:
+            drawing_utils.draw_landmarks(
+                image=annotated_image,
+                landmark_list=[face_landmarks[idx] for idx in LANDMARKERS_INDEX_LIPS],
+                connection_drawing_spec=None)
+        
+        if Debug.SHOW_LANDMARK_LEFT_EYE:
+            drawing_utils.draw_landmarks(
+                image=annotated_image,
+                landmark_list=[face_landmarks[idx] for idx in LANDMARKERS_INDEX_LEFT_EYE],
+                connection_drawing_spec=None)
+        
+        if Debug.SHOW_LANDMARK_LEFT_EYEBROW:
+            drawing_utils.draw_landmarks(
+                image=annotated_image,
+                landmark_list=[face_landmarks[idx] for idx in LANDMARKERS_INDEX_LEFT_EYEBROW],
+                connection_drawing_spec=None)
+        
+        if Debug.SHOW_LANDMARK_LEFT_IRIS:
+            drawing_utils.draw_landmarks(
+                image=annotated_image,
+                landmark_list=[face_landmarks[idx] for idx in LANDMARKERS_INDEX_LEFT_IRIS],
+                connection_drawing_spec=None)
+                
+        if Debug.SHOW_LANDMARK_RIGHT_EYE:
+            drawing_utils.draw_landmarks(
+                image=annotated_image,
+                landmark_list=[face_landmarks[idx] for idx in LANDMARKERS_INDEX_RIGHT_EYE],
+                connection_drawing_spec=None)
+        
+        if Debug.SHOW_LANDMARK_RIGHT_EYEBROW:
+            drawing_utils.draw_landmarks(
+                image=annotated_image,
+                landmark_list=[face_landmarks[idx] for idx in LANDMARKERS_INDEX_RIGHT_EYEBROW],
+                connection_drawing_spec=None)
+        
+        if Debug.SHOW_LANDMARK_RIGHT_IRIS:
+            drawing_utils.draw_landmarks(
+                image=annotated_image,
+                landmark_list=[face_landmarks[idx] for idx in LANDMARKERS_INDEX_RIGHT_IRIS],
+                connection_drawing_spec=None)
+        if Debug.SHOW_LANDMARK_FACE_OVAL:
+            drawing_utils.draw_landmarks(
+                image=annotated_image,
+                landmark_list=[face_landmarks[idx] for idx in LANDMARKERS_INDEX_FACE_OVAL],
+                connection_drawing_spec=None)
+        if Debug.SHOW_LANDMARK_TASSELATION:
+            drawing_utils.draw_landmarks(
+                image=annotated_image,
+                landmark_list=[face_landmarks[idx] for idx in LANDMARKERS_INDEX_TASSELATION],
+                connection_drawing_spec=None)
     return annotated_image
 
 
@@ -66,6 +167,7 @@ def result_cb(result: FaceLandmarkerResult, output_image: mp.Image, timestamp_ms
 class FaceTracker:
     
     result: FaceLandmarkerResult = None
+
     def __init__(self):
         #set the model's path
         self.model_path = "./face_landmarker_v2.task"
@@ -82,15 +184,6 @@ class FaceTracker:
                                                 num_faces=1,
                                                 result_callback=result_cb)
         self.detector = vision.FaceLandmarker.create_from_options(self.options)
-        #self.mp_face_mesh = mp.solutions.face_mesh
-        #self.face_mesh = self.mp_face_mesh.FaceMesh(
-        #    max_num_faces=1,            # da impostare il numero di facce da elaborare(possiamo lasciare a 1)
-        #    refine_landmarks=True,      # punti più dettagliati per occhi e bocca
-        #    min_detection_confidence=0.5,
-        #    min_tracking_confidence=0.5
-        #)
-        #self.mp_drawing = mp.solutions.drawing_utils
-        #self.mp_drawing_styles = mp.solutions.drawing_styles
         #capture data
         self.cap = None
     
@@ -105,32 +198,18 @@ class FaceTracker:
             return False
         return True
     
-    def read_frame(self):
-        """Legge un singolo frame, lo processa e restituisce i dati."""
+    def read_frame(self) -> cv2.typing.MatLike | None:
+        """Legge un singolo frame, lo processa e restituisce i dati.
+           Read and process a single frame 
+        """
         success, image = self.cap.read()
         if not success:
             return None, None
 
-        
-        
-        # MediaPipe vuole immagini in RGB
-        #image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        
-        #results = self.face_mesh.process(image_rgb)
-        #If we want to use directly the facke landmark model
+        #Directly use of the facke landmark model
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image)
         self.detector.detect_async(image=mp_image, timestamp_ms=curr_ms_time())
-        #if results.multi_face_landmarks:
-        #    for face_landmarks in results.multi_face_landmarks:
-        #        self.mp_drawing.draw_landmarks(
-        #            image=image,
-        #            landmark_list=face_landmarks,
-        #            connections=self.mp_face_mesh.FACEMESH_TESSELATION,
-        #            landmark_drawing_spec=None,
-        #            connection_drawing_spec=self.mp_drawing_styles.get_default_face_mesh_tesselation_style()
-        #        )
-        results = None
-        return image, results
+        return image
 
     def read_landmarks(self):
         """(landmark del primo viso, aspect ratio del frame), o None.
@@ -175,7 +254,7 @@ if __name__ == "__main__":
     if tracker.start():
         print("Premi 'q' sulla finestra del video per uscire.")
         while True:
-            frame, results = tracker.read_frame()
+            frame= tracker.read_frame()
             if frame is None:
                 break
             

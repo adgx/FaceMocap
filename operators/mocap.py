@@ -59,7 +59,9 @@ PIANO_OSSA = _piano_ossa()
 
 
 def reset_rig_pose(rig):
-    """Riporta a riposo le ossa gestite dal mocap."""
+    """Riporta a riposo le ossa gestite dal mocap.
+       Reset the bone location position and rotation
+    """
     for bone_name in FACE_MAPPING:
         pose_bone = rig.pose.bones.get(bone_name)
         if not pose_bone:
@@ -70,34 +72,42 @@ def reset_rig_pose(rig):
         else:
             pose_bone.rotation_euler = (0.0, 0.0, 0.0)
 
+####################################################
+#               Operators Classes                  #
+####################################################
 
 class FACEMOCAP_OT_reset_pose(bpy.types.Operator):
-    """Riporta l'armatura alla rest pose"""
+    """Riporta l'armatura alla rest pose
+       Reset pose to the default
+    """
     bl_idname = "facemocap.reset_pose"
-    bl_label = "Azzera Posa"
+    bl_label = "Reset pose"
+    bl_description = "Reset the pose to the default"
     bl_options = {'REGISTER', 'UNDO'}
 
-    def execute(self, context):
+    def execute(self, context: bpy.types.Context) -> set[str]:
         rig = find_rig(context)
         if not rig:
-            self.report({'ERROR'}, "Armatura FaceMocap non trovata.")
+            self.report({'ERROR'}, "Armatura FaceMocap not found.")
             return {'CANCELLED'}
         reset_rig_pose(rig)
         return {'FINISHED'}
 
 
 class FACEMOCAP_OT_start_capture(bpy.types.Operator):
-    """Avvia la motion capture facciale. ESC per fermare, C per ricalibrare"""
+    """Avvia la motion capture facciale. ESC per fermare, C per ricalibrare
+       Start the facial motion capture. Esc to stop, and C for recalibrating 
+    """
     bl_idname = "facemocap.start_capture"
-    bl_label = "Avvia Motion Capture"
-    bl_description = "Creation of the armatrue or the motion capture"
+    bl_label = "Start Motion Capture"
+    bl_description = "Creation of the armatrue for the motion capture"
     
     _timer = None
     _tracker = None
     _area = None
     _rig = None
 
-    def _begin_calibration(self, context):
+    def _begin_calibration(self, context: bpy.types.Context) -> None:
         """Azzera la posa e riparte a raccogliere la posa neutra."""
         self._calib_left = config.CALIBRATION_FRAMES
         self._calib_sum = {}
@@ -115,7 +125,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
 
         reset_rig_pose(self._rig)
 
-    def _accumulate_calibration(self, local, origin, rot, scale):
+    def _accumulate_calibration(self, local, origin, rot, scale) -> None:
         for idx, vec in local.items():
             if idx in self._calib_sum:
                 self._calib_sum[idx] += vec
@@ -132,7 +142,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
 
         self._calib_left -= 1
 
-    def _finish_calibration(self, context):
+    def _finish_calibration(self, context: bpy.types.Context) -> bool:
         count = len(self._calib_quats)
         if count == 0:
             return False
@@ -153,7 +163,8 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         dett_unit = {}
         self._unit_scale = solver.solve_unit_scale(self._rig, self._neutral, dett_unit)
         if self._unit_scale is None:
-            self.report({'WARNING'}, "Impossibile stimare la scala del rig: controlla le posizioni delle ossa.")
+            #self.report({'WARNING'}, "Impossibile stimare la scala del rig: controlla le posizioni delle ossa.")
+            self.report({'WARNING'}, "Unable to estimate rig's scale: check the bones' postions.")
             return False
         
         dett_scale = {}
@@ -163,13 +174,18 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
 
         stampa_tabella_scale(self._unit_scale, dett_unit, dett_scale)
 
-        self.report({'INFO'}, "Calibrato. Scala rig: %.4f unita' per larghezza "
-                    "viso. Tabella delle scale nella console di sistema."
+        #self.report({'INFO'}, "Calibrato. Scala rig: %.4f unita' per larghezza "
+        #            "viso. Tabella delle scale nella console di sistema."
+        #            % self._unit_scale)
+                    
+        self.report({'INFO'}, "Calibrated. Rig's scale: %.4f unit per width"
+                    "face. Table scale on console."
                     % self._unit_scale)
+
         return True
 
 
-    def _apply_pose(self, context, local, origin, rot, scale):
+    def _apply_pose(self, context: bpy.types.Context, local, origin, rot, scale):
         settings = context.scene.facemocap
         alpha = 1.0 - config.SMOOTHING
 
@@ -215,7 +231,9 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         self._apply_head_rotation(context, rot, alpha)
 
     def _warn_bad_lever(self, bone_name):
-        """Avvisa una sola volta che l'osso non e' orientato come una leva."""
+        """Avvisa una sola volta che l'osso non e' orientato come una leva.
+        
+        """
         if bone_name in self._warned_bones:
             return
         self._warned_bones.add(bone_name)
@@ -247,7 +265,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
 
     def _solve_head_translation(self, settings, origin, scale):
         """Spostamento della testa nello spazio, in unita' armatura."""
-        #diviso per la scala corrente quinfi il risultato e' "quante larghezze di
+        #diviso per la scala corrente quindi il risultato e' "quante larghezze di
         # viso si e' spostata la testa", quindi indipendente dalla distanza.
         offset = (origin - self._neutral_origin) / scale
 
@@ -280,20 +298,23 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             pose_bone.rotation_mode = 'QUATERNION'
         pose_bone.rotation_quaternion = self._smoothed_quat
 
-
-    def modal(self, context, event):
+    #Handel the keywork events for the motion capture
+    def modal(self, context: bpy.types.Context, event: bpy.types.Event) -> set[str]:
+        """Handel the keywork events for the motion capture"""
         if event.type in {'RIGHTMOUSE', 'ESC'}:
             self.cancel(context)
             return {'CANCELLED'}
 
         if event.type == 'C' and event.value == 'PRESS':
             self._begin_calibration(context)
-            self._set_header(context, "Ricalibrazione: mantieni il viso neutro")
+            #self._set_header(context, "Ricalibrazione: mantieni il viso neutro")
+            self._set_header(context, "Recalibrating: keep a relaxed facial expression.")
             return {'RUNNING_MODAL'}
 
         if event.type != 'TIMER':
             return {'PASS_THROUGH'}
-
+        
+        #reading landmarks information
         lettura = self._tracker.read_landmarks()
         if lettura is None:
             return {'PASS_THROUGH'}
@@ -323,11 +344,11 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
 
         return {'PASS_THROUGH'}
 
-    def _set_header(self, context, text):
+    def _set_header(self, context, text) -> None:
         if self._area:
             self._area.header_text_set("FaceMocap: " + text)
 
-    def execute(self, context):
+    def execute(self, context: bpy.types.Context) -> set[str]:
         self._rig = find_rig(context)
         if not self._rig:
             self.report({'ERROR'}, "Armatura FaceMocap non trovata. Generala prima di avviare.")
@@ -356,7 +377,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         self.report({'INFO'}, "Motion Capture avviata. ESC per fermare, C per ricalibrare.")
         return {'RUNNING_MODAL'}
 
-    def cancel(self, context):
+    def cancel(self, context: bpy.types.Context) -> set[str]:
         wm = context.window_manager
         if self._timer:
             wm.event_timer_remove(self._timer)
