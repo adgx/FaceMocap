@@ -5,7 +5,7 @@ from mathutils import Quaternion, Vector
 
 from ..core import solver
 from ..core import config
-from ..core.config import FACE_MAPPING, LM_FOREHEAD, LM_NASION, LM_SIDE_L, LM_SIDE_R
+from ..core.config import FACE_MAPPING, LANDMARKERS_FACE_MAPPING, LM_FOREHEAD, LM_NASION, LM_SIDE_L, LM_SIDE_R
 from ..core.rig import find_rig
 from ..core.webcam_core import FaceTracker
 from .diagnostics import stampa_tabella_scale
@@ -17,6 +17,12 @@ TRACKED_INDICES = sorted(
     | {LM_SIDE_R, LM_SIDE_L, LM_FOREHEAD, LM_NASION}
 )
 
+ADVANCE_TRACKED_INDICES = sorted(
+    {data.landmark for data in LANDMARKERS_FACE_MAPPING.values()}
+    | {data.parent_landmark for data in LANDMARKERS_FACE_MAPPING.values()
+       if data.parent_landmark is not None}
+    | {LM_SIDE_R, LM_SIDE_L, LM_FOREHEAD, LM_NASION}
+)
 
 def _gain_gruppo(bone_name):
     """Moltiplicatore d'ampiezza del gruppo a cui l'osso appartiene."""
@@ -315,30 +321,32 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             return {'PASS_THROUGH'}
         
         #reading landmarks information
-        lettura = self._tracker.read_landmarks()
-        if lettura is None:
+        results = self._tracker.read_landmarks()
+        if results is None:
             return {'PASS_THROUGH'}
-        landmarks, aspect = lettura
-
+        landmarks, aspect = results
+        #ok
         head_frame = solver.build_head_frame(landmarks, aspect)
         if head_frame is None:
             return {'PASS_THROUGH'}
         origin, rot, scale = head_frame
-
+        #to see
         local = solver.to_head_local(landmarks, TRACKED_INDICES, origin, rot, scale, aspect)
 
         if self._neutral is None:
             self._accumulate_calibration(local, origin, rot, scale)
             if self._calib_left > 0:
-                self._set_header(context, "Mantieni il viso neutro... %d" % self._calib_left)
+                self._set_header(context, "keep a relaxed facial expression.... %d" % self._calib_left)
             elif not self._finish_calibration(context):
                 self.cancel(context)
                 return {'CANCELLED'}
             else:
-                self._set_header(context, "Mocap attivo | ESC = stop | C = ricalibra")
+                self._set_header(context, "Mocap actived | ESC = stop | C = Ricalibration")
         else:
+            #to see
             self._apply_pose(context, local, origin, rot, scale)
 
+        #to see
         if self._area:
             self._area.tag_redraw()
 
@@ -351,12 +359,12 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
     def execute(self, context: bpy.types.Context) -> set[str]:
         self._rig = find_rig(context)
         if not self._rig:
-            self.report({'ERROR'}, "Armatura FaceMocap non trovata. Generala prima di avviare.")
+            self.report({'ERROR'}, "FaceMocap rig not found. Generate it before starting.")
             return {'CANCELLED'}
 
         self._tracker = FaceTracker()
         if not self._tracker.start():
-            self.report({'ERROR'}, "Impossibile avviare la webcam.")
+            self.report({'ERROR'}, "Unable to start the webcam.")
             return {'CANCELLED'}
 
         if context.mode != 'OBJECT':
@@ -368,13 +376,13 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
 
         self._area = context.area if context.area and context.area.type == 'VIEW_3D' else None
         self._begin_calibration(context)
-        self._set_header(context, "Mantieni il viso neutro...")
+        self._set_header(context, "keep a relaxed facial expression...")
 
         wm = context.window_manager
         self._timer = wm.event_timer_add(0.03, window=context.window)
         wm.modal_handler_add(self)
 
-        self.report({'INFO'}, "Motion Capture avviata. ESC per fermare, C per ricalibrare.")
+        self.report({'INFO'}, "Motion Capture started. Press ESC to stop, C to recalibrate.")
         return {'RUNNING_MODAL'}
 
     def cancel(self, context: bpy.types.Context) -> set[str]:
@@ -388,4 +396,4 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         if self._area:
             self._area.header_text_set(None)
             self._area = None
-        self.report({'INFO'}, "Motion Capture fermata.")
+        self.report({'INFO'}, "Motion Capture stopped.")

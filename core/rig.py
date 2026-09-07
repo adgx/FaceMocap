@@ -4,17 +4,16 @@ from .config import FACE_MAPPING, ROTATION_BONES, LANDMARKERS_FACE_MAPPING
 
 RIG_NAME = "FaceMocap_Rig"
 ADVANCED_RIG_NAME = "RIG-FaceMocap_advanced_face"
-LANDMARKS_RIG_NAME = "RIG-Landmarks"
+LANDMARKS_RIG_NAME = "RIG-FaceMocap_Landmarkers"
 
 def find_rig(context=None):
     """L'armatura del rig, o None. Cercata per nome o per armatura attiva"""
-    obj = bpy.data.objects.get(RIG_NAME)
-    if obj is not None and obj.type == 'ARMATURE':
-        return obj
-    if context is not None:
-        active = context.active_object
-        if active is not None and active.type == 'ARMATURE':
-            return active
+    
+    for name in (LANDMARKS_RIG_NAME, RIG_NAME):
+        obj = bpy.data.objects.get(name)
+        if obj is not None and obj.type == 'ARMATURE':
+            return obj
+    
     return None
 
 

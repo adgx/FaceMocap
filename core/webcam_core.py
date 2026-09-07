@@ -8,6 +8,7 @@ import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from mediapipe.tasks.python.vision.face_landmarker import FaceLandmarkerResult
+from mediapipe.tasks.python.components.containers import NormalizedLandmark
 from typing import NamedTuple
 from mediapipe.tasks.python.vision import drawing_utils
 from mediapipe.tasks.python.vision import drawing_styles
@@ -27,7 +28,9 @@ class Debug:
     SHOW_LANDMARK_RIGHT_IRIS: bool = False
     SHOW_LANDMARK_FACE_OVAL: bool = False
     SHOW_LANDMARK_TASSELATION: bool = False
-    SHOW_LANDMARK_FACEMOCAP: bool = True
+    SHOW_LANDMARK_FACEMOCAP: bool = False
+    SHOW_LANDMARK_BOUNDS_FACEMOCAP: bool = True
+
 
 LANDMARKERS_INDEX_LIPS: list[int] = list(dict.fromkeys( idx 
                                                         for connession in vision.FaceLandmarksConnections.FACE_LANDMARKS_LIPS
@@ -65,6 +68,8 @@ LANDMARKERS_INDEX_TASSELATION: list[int] = list(dict.fromkeys( idx
                                                         for connession in vision.FaceLandmarksConnections.FACE_LANDMARKS_TESSELATION
                                                         for idx in (connession.start, connession.end)))
 LANDMARKERS_INDEX_ADVANCE_FACEMOCAP: list[int] = list(landmark[0] for landmark in config.LANDMARKERS_FACE_MAPPING.values())
+LANDMARKERS_INDEX_BOUNDS_FACEMOCAP: list[int] = [config.LM_SIDE_R, config.LM_SIDE_L, config.LM_FOREHEAD, config.LM_NASION] 
+
 def curr_ms_time() -> int:
     return round(time.time() * 1000)
 
@@ -164,6 +169,11 @@ def draw_landmarks_on_image(rgb_image, detection_result):
                 image=annotated_image,
                 landmark_list=[face_landmarks[idx] for idx in LANDMARKERS_INDEX_ADVANCE_FACEMOCAP],
                 connection_drawing_spec=None)
+        if Debug.SHOW_LANDMARK_BOUNDS_FACEMOCAP:
+            drawing_utils.draw_landmarks(
+                image=annotated_image,
+                landmark_list=[face_landmarks[idx] for idx in LANDMARKERS_INDEX_BOUNDS_FACEMOCAP],
+                connection_drawing_spec=None)
     return annotated_image
 
 
@@ -214,29 +224,34 @@ class FaceTracker:
         if not success:
             return None, None
 
-        #Directly use of the facke landmark model
+        #Directly use of the face landmark model
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image)
         self.detector.detect_async(image=mp_image, timestamp_ms=curr_ms_time())
         return image
-
-    def read_landmarks(self):
+    #-> None | (list[NormalizedLandmark], float)
+    def read_landmarks(self) -> tuple[list[NormalizedLandmark], float] | None:
         """(landmark del primo viso, aspect ratio del frame), o None.
 
         None copre tutti i casi in cui non c'e' niente da applicare: frame non
         letto, nessun viso riconosciuto. Chi chiama fa un solo controllo.
+        (landmarks, frame aspect ratio)
         """
         success, image = self.cap.read()
         if not success:
             return None
 
         # MediaPipe vuole immagini in RGB
-        results = self.face_mesh.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        #results = self.face_mesh.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        
+        #Directly use of the face landmark model
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image)
+        self.detector.detect_async(image=mp_image, timestamp_ms=curr_ms_time())
         if not results.multi_face_landmarks:
             return None
 
         height, width = image.shape[:2]
         aspect = width / height if height else 1.0
-        return results.multi_face_landmarks[0].landmark, aspect
+        return FaceTracker.result.face_landmarks[0], aspect
 
     def stop(self) -> None:
         """Rilascia la webcam e chiude le finestre."""

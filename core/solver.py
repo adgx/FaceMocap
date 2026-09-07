@@ -34,6 +34,7 @@ def landmark_point(landmarks, idx, aspect):
 
 def build_head_frame(landmarks, aspect):
     """Costruisce il sistema di riferimento della testa."""
+    """Make the head ref sys """
     p_right = landmark_point(landmarks, LM_SIDE_R, aspect)
     p_left = landmark_point(landmarks, LM_SIDE_L, aspect)
     p_top = landmark_point(landmarks, LM_FOREHEAD, aspect)
@@ -43,7 +44,7 @@ def build_head_frame(landmarks, aspect):
     scale = side.length
     if scale < 1e-6:
         return None
-
+    
     axis_l = side / scale
     up_raw = p_top - origin
 
@@ -68,10 +69,10 @@ def to_head_local(landmarks, indices, origin, rot, scale, aspect):
 
 
 def mirrored_bone_name(name):
-    if name.endswith("_L"):
-        return name[:-2] + "_R"
-    if name.endswith("_R"):
-        return name[:-2] + "_L"
+    if name.endswith(".L"):
+        return name[:-2] + ".R"
+    if name.endswith(".R"):
+        return name[:-2] + ".L"
     return name
 
 
