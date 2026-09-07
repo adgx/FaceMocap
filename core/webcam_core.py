@@ -11,6 +11,8 @@ from mediapipe.tasks.python.vision.face_landmarker import FaceLandmarkerResult
 from typing import NamedTuple
 from mediapipe.tasks.python.vision import drawing_utils
 from mediapipe.tasks.python.vision import drawing_styles
+from . import config
+from .. import MODEL_DIR, MODEL_NAME
 
 #utils stuff
 
@@ -24,7 +26,8 @@ class Debug:
     SHOW_LANDMARK_RIGHT_EYEBROW: bool = False
     SHOW_LANDMARK_RIGHT_IRIS: bool = False
     SHOW_LANDMARK_FACE_OVAL: bool = False
-    SHOW_LANDMARK_TASSELATION: bool = True
+    SHOW_LANDMARK_TASSELATION: bool = False
+    SHOW_LANDMARK_FACEMOCAP: bool = True
 
 LANDMARKERS_INDEX_LIPS: list[int] = list(dict.fromkeys( idx 
                                                         for connession in vision.FaceLandmarksConnections.FACE_LANDMARKS_LIPS
@@ -61,7 +64,7 @@ LANDMARKERS_INDEX_FACE_OVAL: list[int] = list(dict.fromkeys( idx
 LANDMARKERS_INDEX_TASSELATION: list[int] = list(dict.fromkeys( idx 
                                                         for connession in vision.FaceLandmarksConnections.FACE_LANDMARKS_TESSELATION
                                                         for idx in (connession.start, connession.end)))
-
+LANDMARKERS_INDEX_ADVANCE_FACEMOCAP: list[int] = list(landmark[0] for landmark in config.LANDMARKERS_FACE_MAPPING.values())
 def curr_ms_time() -> int:
     return round(time.time() * 1000)
 
@@ -155,6 +158,11 @@ def draw_landmarks_on_image(rgb_image, detection_result):
             drawing_utils.draw_landmarks(
                 image=annotated_image,
                 landmark_list=[face_landmarks[idx] for idx in LANDMARKERS_INDEX_TASSELATION],
+                connection_drawing_spec=None)
+        if Debug.SHOW_LANDMARK_FACEMOCAP:
+            drawing_utils.draw_landmarks(
+                image=annotated_image,
+                landmark_list=[face_landmarks[idx] for idx in LANDMARKERS_INDEX_ADVANCE_FACEMOCAP],
                 connection_drawing_spec=None)
     return annotated_image
 
