@@ -4,9 +4,10 @@ import math
 import statistics
 
 from mathutils import Matrix, Quaternion, Vector
-
+from .rig import LANDMARKS_RIG_NAME
 from .config import (
     FACE_MAPPING,
+    LANDMARKERS_FACE_MAPPING,
     MAX_FEATURE_SCALE,
     MIN_FEATURE_SCALE,
     LM_FOREHEAD,
@@ -111,15 +112,20 @@ def solve_unit_scale(armature, neutral_local, details=None):
     di conversione. Cosi' l'ampiezza e' corretta su qualunque modello, senza
     numeri da modificare a mano.
     """
-    names = [n for n in FACE_MAPPING if n in armature.pose.bones]
+    #to-do: replace it with a function
+    if armature.name in LANDMARKS_RIG_NAME:
+        mapping = LANDMARKERS_FACE_MAPPING
+    else: 
+        mapping = FACE_MAPPING
+    names = [n for n in mapping if n in armature.pose.bones]
     ratios = []
 
     for i, name_a in enumerate(names):
-        idx_a = FACE_MAPPING[name_a].landmark
+        idx_a = mapping[name_a].landmark
         if idx_a not in neutral_local:
             continue
         for name_b in names[i + 1:]:
-            idx_b = FACE_MAPPING[name_b].landmark
+            idx_b = mapping[name_b].landmark
             if idx_b not in neutral_local:
                 continue
 
@@ -127,6 +133,7 @@ def solve_unit_scale(armature, neutral_local, details=None):
             if mp_dist < MIN_PAIR_DIST:
                 continue
 
+            #to see
             anchor_a = bone_anchor(armature.pose.bones[name_a].bone)
             anchor_b = bone_anchor(armature.pose.bones[name_b].bone)
             rig_dist = (anchor_a - anchor_b).length
@@ -146,8 +153,13 @@ def solve_unit_scale(armature, neutral_local, details=None):
 
 def solve_bone_scales(armature, neutral_local, global_scale, details=None):
     """Scala di conversione per ogni osso, in unita' Blender per larghezza viso."""
+    if armature.name in LANDMARKS_RIG_NAME:
+        mapping = LANDMARKERS_FACE_MAPPING
+    else: 
+        mapping = FACE_MAPPING
+
     scales = {}
-    for name, data in FACE_MAPPING.items():
+    for name, data in mapping.items():
         ref = data.scale_ref
         scale = None
         info = {"ref": ref, "mp_dist": None, "rig_dist": None, "taglio": None}
@@ -155,8 +167,8 @@ def solve_bone_scales(armature, neutral_local, global_scale, details=None):
         if ref:
             bone_a, bone_b = ref
             if bone_a in armature.pose.bones and bone_b in armature.pose.bones:
-                idx_a = FACE_MAPPING[bone_a].landmark
-                idx_b = FACE_MAPPING[bone_b].landmark
+                idx_a = mapping[bone_a].landmark
+                idx_b = mapping[bone_b].landmark
                 if idx_a in neutral_local and idx_b in neutral_local:
                     mp_dist = (neutral_local[idx_a] - neutral_local[idx_b]).length
                     rig_dist = (bone_anchor(armature.pose.bones[bone_a].bone)

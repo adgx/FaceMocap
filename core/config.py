@@ -1,5 +1,10 @@
+from enum import Enum
 from typing import NamedTuple
 
+class MotionMode(Enum):
+    HEAD = "HEAD"
+    LANDMARK = "LANDMARK"
+    RELATIVE = "RELATIVE"
 
 class BoneMap(NamedTuple):
     landmark: int         # indice MediaPipe che pilota l'osso
@@ -73,70 +78,70 @@ _LANDMARKS_BONES_LUT = {
     ##################################################################
     #                            Eyelid                              #
     ##################################################################
-    "LMR-Eyelid_corner_in.L":   (398, None,    "LMK-Root", (0.025, -0.048, 0.372),  1.0, None),
-    "LMR-Eyelid_upp1.L":        (384, None,    "LMK-Root", (0.039, -0.051, 0.382),  1.0, None),
-    "LMR-Eyelid_upp2.L":        (386, None,    "LMK-Root", (0.052, -0.054, 0.384),  1.0, None),
-    "LMR-Eyelid_upp3.L":        (388, None,    "LMK-Root", (0.067, -0.047, 0.382),  1.0, None),
-    "LMR-Eyelid_corner_out.L":  (263, None,    "LMK-Root", (0.073, -0.035, 0.378),  1.0, None),
-    "LMR-Eyelid_low1.L":        (381, None,    "LMK-Root", (0.040, -0.049, 0.372),  1.0, None),
-    "LMR-Eyelid_low2.L":        (374, None,    "LMK-Root", (0.053, -0.050, 0.370),  1.0, None),
-    "LMR-Eyelid_low3.L":        (390, None,    "LMK-Root", (0.066, -0.040, 0.374),  1.0, None),
+    "LMK-Eyelid_corner_in.L":   (398, None,    "LMK-Root", (0.025, -0.048, 0.372),  1.0, None),
+    "LMK-Eyelid_upp1.L":        (384, None,    "LMK-Root", (0.039, -0.051, 0.382),  1.0, None),
+    "LMK-Eyelid_upp2.L":        (386, None,    "LMK-Root", (0.052, -0.054, 0.384),  1.0, None),
+    "LMK-Eyelid_upp3.L":        (388, None,    "LMK-Root", (0.067, -0.047, 0.382),  1.0, None),
+    "LMK-Eyelid_corner_out.L":  (263, None,    "LMK-Root", (0.073, -0.035, 0.378),  1.0, None),
+    "LMK-Eyelid_low1.L":        (381, None,    "LMK-Root", (0.040, -0.049, 0.372),  1.0, None),
+    "LMK-Eyelid_low2.L":        (374, None,    "LMK-Root", (0.053, -0.050, 0.370),  1.0, None),
+    "LMK-Eyelid_low3.L":        (390, None,    "LMK-Root", (0.066, -0.040, 0.374),  1.0, None),
 
-    "LMR-Eyelid_corner_in.R":   (133, None,    "LMK-Root", (-0.025, -0.048, 0.372),  1.0, None),
-    "LMR-Eyelid_upp1.R":        (157, None,    "LMK-Root", (-0.039, -0.051, 0.382),  1.0, None),
-    "LMR-Eyelid_upp2.R":        (159, None,    "LMK-Root", (-0.052, -0.054, 0.384),  1.0, None),
-    "LMR-Eyelid_upp3.R":        (161, None,    "LMK-Root", (-0.067, -0.047, 0.382),  1.0, None),
-    "LMR-Eyelid_corner_out.R":  (33,  None,    "LMK-Root", (-0.073, -0.035, 0.378),  1.0, None),
-    "LMR-Eyelid_low1.R":        (154, None,    "LMK-Root", (-0.040, -0.049, 0.372),  1.0, None),
-    "LMR-Eyelid_low2.R":        (145, None,    "LMK-Root", (-0.053, -0.050, 0.370),  1.0, None),
-    "LMR-Eyelid_low3.R":        (163, None,    "LMK-Root", (-0.066, -0.040, 0.374),  1.0, None),
+    "LMK-Eyelid_corner_in.R":   (133, None,    "LMK-Root", (-0.025, -0.048, 0.372),  1.0, None),
+    "LMK-Eyelid_upp1.R":        (157, None,    "LMK-Root", (-0.039, -0.051, 0.382),  1.0, None),
+    "LMK-Eyelid_upp2.R":        (159, None,    "LMK-Root", (-0.052, -0.054, 0.384),  1.0, None),
+    "LMK-Eyelid_upp3.R":        (161, None,    "LMK-Root", (-0.067, -0.047, 0.382),  1.0, None),
+    "LMK-Eyelid_corner_out.R":  (33,  None,    "LMK-Root", (-0.073, -0.035, 0.378),  1.0, None),
+    "LMK-Eyelid_low1.R":        (154, None,    "LMK-Root", (-0.040, -0.049, 0.372),  1.0, None),
+    "LMK-Eyelid_low2.R":        (145, None,    "LMK-Root", (-0.053, -0.050, 0.370),  1.0, None),
+    "LMK-Eyelid_low3.R":        (163, None,    "LMK-Root", (-0.066, -0.040, 0.374),  1.0, None),
     
     ##################################################################
     #                              BROW                              #
     ##################################################################
-    "LMR-Brow1.L":         (336, None,    "LMK-Root", (0.039, -0.078, 0.418),   1.0, None),
-    "LMR-Brow2.L":         (334, None,    "LMK-Root", (0.077, -0.056, 0.420),   1.0, None),
-    "LMR-Brow3.L":         (300, None,    "LMK-Root", (0.098, -0.018, 0.408),   1.0, None),
-    "LMR-Brow1.R":         (107, None,    "LMK-Root", (-0.039, -0.078, 0.418),  1.0, None),
-    "LMR-Brow2.R":         (105, None,    "LMK-Root", (-0.077, -0.056, 0.420),  1.0, None),
-    "LMR-Brow3.R":         (70,  None,    "LMK-Root", (-0.098, -0.018, 0.408),  1.0, None),
+    "LMK-Brow1.L":         (336, None,    "LMK-Root", (0.039, -0.078, 0.418),   1.0, None),
+    "LMK-Brow2.L":         (334, None,    "LMK-Root", (0.077, -0.056, 0.420),   1.0, None),
+    "LMK-Brow3.L":         (300, None,    "LMK-Root", (0.098, -0.018, 0.408),   1.0, None),
+    "LMK-Brow1.R":         (107, None,    "LMK-Root", (-0.039, -0.078, 0.418),  1.0, None),
+    "LMK-Brow2.R":         (105, None,    "LMK-Root", (-0.077, -0.056, 0.420),  1.0, None),
+    "LMK-Brow3.R":         (70,  None,    "LMK-Root", (-0.098, -0.018, 0.408),  1.0, None),
     
     ##################################################################
     #                            FACE OVAL                           #
     ##################################################################
-    "LMR-Face_oval1.L":         (338, None,    "LMK-Root", (0.038, -0.063, 0.472),   1.0, None),
-    "LMR-Face_oval2.L":         (332, None,    "LMK-Root", (0.082, -0.035, 0.461),   1.0, None),
-    "LMR-Face_oval3.L":         (454, None,    "LMK-Root", (0.11, 0.054, 0.36),   1.0, None),
-    "LMR-Face_oval4.L":         (361, None,    "LMK-Root", (0.106, 0.061, 0.316),   1.0, None),
-    "LMR-Face_oval5.L":         (379, None,    "LMK-Root", (0.057, -0.016, 0.233),   1.0, None),
+    "LMK-Face_oval1.L":         (338, None,    "LMK-Root", (0.038, -0.063, 0.472),   1.0, None),
+    "LMK-Face_oval2.L":         (332, None,    "LMK-Root", (0.082, -0.035, 0.461),   1.0, None),
+    "LMK-Face_oval3.L":         (454, None,    "LMK-Root", (0.11, 0.054, 0.36),   1.0, None),
+    "LMK-Face_oval4.L":         (361, None,    "LMK-Root", (0.106, 0.061, 0.316),   1.0, None),
+    "LMK-Face_oval5.L":         (379, None,    "LMK-Root", (0.057, -0.016, 0.233),   1.0, None),
     
-    "LMR-Face_oval_chin":       (152, None,    "LMK-Root", (0.0, -0.056, 0.206),   1.0, None),
+    "LMK-Face_oval_chin":       (152, None,    "LMK-Root", (0.0, -0.056, 0.206),   1.0, None),
     
-    "LMR-Face_oval1.R":         (109, None,    "LMK-Root", (-0.038, -0.063, 0.472),   1.0, None),
-    "LMR-Face_oval2.R":         (103, None,    "LMK-Root", (-0.082, -0.035, 0.461),   1.0, None),
-    "LMR-Face_oval3.R":         (234, None,    "LMK-Root", (-0.11, 0.054, 0.36),   1.0, None),
-    "LMR-Face_oval4.R":         (132, None,    "LMK-Root", (-0.106, 0.061, 0.316),   1.0, None),
-    "LMR-Face_oval5.R":         (150, None,    "LMK-Root", (-0.057, -0.016, 0.233),   1.0, None),
+    "LMK-Face_oval1.R":         (109, None,    "LMK-Root", (-0.038, -0.063, 0.472),   1.0, None),
+    "LMK-Face_oval2.R":         (103, None,    "LMK-Root", (-0.082, -0.035, 0.461),   1.0, None),
+    "LMK-Face_oval3.R":         (234, None,    "LMK-Root", (-0.11, 0.054, 0.36),   1.0, None),
+    "LMK-Face_oval4.R":         (132, None,    "LMK-Root", (-0.106, 0.061, 0.316),   1.0, None),
+    "LMK-Face_oval5.R":         (150, None,    "LMK-Root", (-0.057, -0.016, 0.233),   1.0, None),
     ##################################################################
     #                            NOSE                                #
     ##################################################################
-    "LMR-Nose_tip":          (4,    None,    "LMK-Root", (0.0, -0.112, 0.314),   1.0, None),
-    "LMR-Nose_base":         (168,  None,    "LMK-Root", (0.0, -0.083, 0.381),   1.0, None),
-    "LMR-Nostril.L":         (358,  None,    "LMK-Root", (0.031, -0.069, 0.311),   1.0, None),
-    "LMR-Nostril.R":         (129,  None,    "LMK-Root", (-0.031, -0.069, 0.311),   1.0, None),
+    "LMK-Nose_tip":          (4,    None,    "LMK-Root", (0.0, -0.112, 0.314),   1.0, None),
+    "LMK-Nose_base":         (168,  None,    "LMK-Root", (0.0, -0.083, 0.381),   1.0, None),
+    "LMK-Nostril.L":         (358,  None,    "LMK-Root", (0.031, -0.069, 0.311),   1.0, None),
+    "LMK-Nostril.R":         (129,  None,    "LMK-Root", (-0.031, -0.069, 0.311),   1.0, None),
 
     ##################################################################
     #                            CHEEK                               #
     ##################################################################
-    "LMR-Cheek_upp.L":          (280, None,    "LMK-Root", (0.078, -0.043, 0.339),   1.0, None),
-    "LMR-Cheek_low.L":          (426, None,    "LMK-Root", (0.054, -0.056, 0.290),   1.0, None),
-    "LMR-Cheek_in.L":           (266, None,    "LMK-Root", (0.044, -0.062, 0.329),   1.0, None),
-    "LMR-Cheek_out.L":          (416, None,    "LMK-Root", (0.079, -0.021, 0.284),   1.0, None),
+    "LMK-Cheek_upp.L":          (280, None,    "LMK-Root", (0.078, -0.043, 0.339),   1.0, None),
+    "LMK-Cheek_low.L":          (426, None,    "LMK-Root", (0.054, -0.056, 0.290),   1.0, None),
+    "LMK-Cheek_in.L":           (266, None,    "LMK-Root", (0.044, -0.062, 0.329),   1.0, None),
+    "LMK-Cheek_out.L":          (416, None,    "LMK-Root", (0.079, -0.021, 0.284),   1.0, None),
 
-    "LMR-Cheek_upp.R":          (50,    None,    "LMK-Root", (-0.078, -0.043, 0.339),   1.0, None),
-    "LMR-Cheek_low.R":          (206,   None,    "LMK-Root", (-0.054, -0.056, 0.290),   1.0, None),
-    "LMR-Cheek_in.R":           (36,    None,    "LMK-Root", (-0.044, -0.062, 0.329),   1.0, None),
-    "LMR-Cheek_out.R":          (192,   None,    "LMK-Root", (-0.079, -0.021, 0.284),   1.0, None),
+    "LMK-Cheek_upp.R":          (50,    None,    "LMK-Root", (-0.078, -0.043, 0.339),   1.0, None),
+    "LMK-Cheek_low.R":          (206,   None,    "LMK-Root", (-0.054, -0.056, 0.290),   1.0, None),
+    "LMK-Cheek_in.R":           (36,    None,    "LMK-Root", (-0.044, -0.062, 0.329),   1.0, None),
+    "LMK-Cheek_out.R":          (192,   None,    "LMK-Root", (-0.079, -0.021, 0.284),   1.0, None),
 
 }
 
@@ -230,7 +235,7 @@ LM_FOREHEAD = 10    # centro fronte
 LM_NASION   = 168   # radice del naso, tra gli occhi
 
 
-MIN_PAIR_DIST = 0.05
+MIN_PAIR_DIST = 0.01
 
 # Ampiezze tarate a mano su modello e webcam di riferimento.
 AMPLITUDE   = 0.50   # moltiplicatore globale delle espressioni facciali (non la testa)
@@ -238,7 +243,7 @@ MOUTH_GAIN  = 0.60   # Jaw, Lip_Upper*, Lip_Lower*, Mouth_Corner_*
 EYE_GAIN    = 1.00   # Eye_L/R, Eyelid_Up/Low_L/R
 BROW_GAIN   = 0.75   # Brow_L/R
 HEAD_GAIN   = 0.50   # traslazione e rotazione di Head
-SMOOTHING   = 0.70   # alpha del filtro anti-jitter
+SMOOTHING   = 0.0   # alpha del filtro anti-jitter
 
 CALIBRATION_FRAMES = 30
 HEAD_DEPTH_GAIN = 1.0

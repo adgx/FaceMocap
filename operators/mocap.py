@@ -6,7 +6,7 @@ from mathutils import Quaternion, Vector
 from ..core import solver
 from ..core import config
 from ..core.config import FACE_MAPPING, LANDMARKERS_FACE_MAPPING, LM_FOREHEAD, LM_NASION, LM_SIDE_L, LM_SIDE_R
-from ..core.rig import find_rig
+from ..core.rig import find_rig, LANDMARKS_RIG_NAME
 from ..core.webcam_core import FaceTracker
 from .diagnostics import stampa_tabella_scale
 
@@ -47,8 +47,13 @@ class _Voce(NamedTuple):
 #to review in way to adapt it for the advance_rig
 def _piano_ossa(rig) -> list[_Voce]:
     voci = []
-    for nome, data in FACE_MAPPING.items():
-        speculare = FACE_MAPPING[solver.mirrored_bone_name(nome)]
+    if rig.name == LANDMARKS_RIG_NAME:
+        mapping = LANDMARKERS_FACE_MAPPING
+    else: 
+        mapping = FACE_MAPPING
+
+    for nome, data in mapping.items():
+        speculare = mapping[solver.mirrored_bone_name(nome)]
         voci.append(_Voce(
             osso=nome,
             landmark=data.landmark,
@@ -60,15 +65,16 @@ def _piano_ossa(rig) -> list[_Voce]:
         ))
     return voci
 
-
-PIANO_OSSA = _piano_ossa(None)
-
-
 def reset_rig_pose(rig):
     """Riporta a riposo le ossa gestite dal mocap.
        Reset the bone location position and rotation
     """
-    for bone_name in FACE_MAPPING:
+    if rig.name == LANDMARKS_RIG_NAME:
+            mapping = LANDMARKERS_FACE_MAPPING
+    else: 
+        mapping = FACE_MAPPING
+
+    for bone_name in mapping:
         pose_bone = rig.pose.bones.get(bone_name)
         if not pose_bone:
             continue
@@ -96,7 +102,6 @@ class FACEMOCAP_OT_reset_pose(bpy.types.Operator):
         if not rig:
             self.report({'ERROR'}, "Armatura FaceMocap not found.")
             return {'CANCELLED'}
-        PIANO_OSSA = _piano_ossa(None)
         reset_rig_pose(rig)
         return {'FINISHED'}
 
@@ -108,11 +113,12 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
     bl_idname = "facemocap.start_capture"
     bl_label = "Start Motion Capture"
     bl_description = "Creation of the armatrue for the motion capture"
-    
+    PIANO_OSSA: list[_Voce] = None
     _timer = None
     _tracker = None
     _area = None
     _rig = None
+    _track_idx = TRACKED_INDICES
 
     def _begin_calibration(self, context: bpy.types.Context) -> None:
         """Azzera la posa e riparte a raccogliere la posa neutra."""
@@ -203,7 +209,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             if idx in self._neutral
         }
 
-        for voce in PIANO_OSSA:
+        for voce in FACEMOCAP_OT_start_capture.PIANO_OSSA:
             pose_bone = self._rig.pose.bones.get(voce.osso)
             
             if not pose_bone:
@@ -332,8 +338,8 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         if head_frame is None:
             return {'PASS_THROUGH'}
         origin, rot, scale = head_frame
-        #to see
-        local = solver.to_head_local(landmarks, TRACKED_INDICES, origin, rot, scale, aspect)
+        #ok
+        local = solver.to_head_local(landmarks, self._track_idx, origin, rot, scale, aspect)
 
         if self._neutral is None:
             self._accumulate_calibration(local, origin, rot, scale)
@@ -358,8 +364,16 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         if self._area:
             self._area.header_text_set("FaceMocap: " + text)
 
+    def _get_track_index(self, rig):
+        if rig.name == LANDMARKS_RIG_NAME:
+            return ADVANCE_TRACKED_INDICES
+        return TRACKED_INDICES
+
     def execute(self, context: bpy.types.Context) -> set[str]:
         self._rig = find_rig(context)
+        self._track_idx = self._get_track_index(self._rig)
+        FACEMOCAP_OT_start_capture.PIANO_OSSA = _piano_ossa(self._rig)
+        
         if not self._rig:
             self.report({'ERROR'}, "FaceMocap rig not found. Generate it before starting.")
             return {'CANCELLED'}
