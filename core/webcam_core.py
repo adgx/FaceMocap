@@ -246,7 +246,7 @@ class FaceTracker:
         #Directly use of the face landmark model
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image)
         self.detector.detect_async(image=mp_image, timestamp_ms=curr_ms_time())
-        if not results.multi_face_landmarks:
+        if not FaceTracker.result.face_landmarks:
             return None
 
         height, width = image.shape[:2]

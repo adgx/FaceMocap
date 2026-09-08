@@ -44,8 +44,8 @@ class _Voce(NamedTuple):
     gain: float               # gain per-osso gia' moltiplicato per quello di gruppo
     rotazione: bool           # osso a leva (mandibola) invece che in traslazione
 
-
-def _piano_ossa():
+#to review in way to adapt it for the advance_rig
+def _piano_ossa(rig) -> list[_Voce]:
     voci = []
     for nome, data in FACE_MAPPING.items():
         speculare = FACE_MAPPING[solver.mirrored_bone_name(nome)]
@@ -61,7 +61,7 @@ def _piano_ossa():
     return voci
 
 
-PIANO_OSSA = _piano_ossa()
+PIANO_OSSA = _piano_ossa(None)
 
 
 def reset_rig_pose(rig):
@@ -96,6 +96,7 @@ class FACEMOCAP_OT_reset_pose(bpy.types.Operator):
         if not rig:
             self.report({'ERROR'}, "Armatura FaceMocap not found.")
             return {'CANCELLED'}
+        PIANO_OSSA = _piano_ossa(None)
         reset_rig_pose(rig)
         return {'FINISHED'}
 
@@ -204,6 +205,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
 
         for voce in PIANO_OSSA:
             pose_bone = self._rig.pose.bones.get(voce.osso)
+            
             if not pose_bone:
                 continue
 
@@ -251,7 +253,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             % bone_name,
         )
 
-    def _apply_lever_rotation(self, pose_bone, bone_name, tip_delta, alpha):
+    def _apply_lever_rotation(self, pose_bone, bone_name, tip_delta, alpha) -> bool:
         """Applica a un osso a leva (la mandibola) la rotazione corrispondente."""
         armature_rot = solver.solve_rotation_from_lever(pose_bone, tip_delta)
         if armature_rot is None:
