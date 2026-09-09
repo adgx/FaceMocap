@@ -16,9 +16,9 @@ class BoneMap(NamedTuple):
     motion_mode: MotionMode     #type of motion to apply on the bone
 
 
-_EYE_L = ("Eyelid_Up_L", "Eyelid_Low_L")    # apertura occhio sinistro
-_EYE_R = ("Eyelid_Up_R", "Eyelid_Low_R")    # apertura occhio destro
-_MOUTH = ("Mouth_Corner_L", "Mouth_Corner_R")   # larghezza bocca
+_EYE_L = ("Eyelid_Up.L", "Eyelid_Low.L")    # apertura occhio sinistro
+_EYE_R = ("Eyelid_Up.R", "Eyelid_Low.R")    # apertura occhio destro
+_MOUTH = ("Mouth_Corner.L", "Mouth_Corner.R")   # larghezza bocca
 
 _TABELLA = {
     "Head":           (1,   None, None,   (0.0,  0.0,  0.0),   1.0, None, MotionMode.HEAD),
@@ -26,29 +26,29 @@ _TABELLA = {
     "Jaw":            (152, 1,    "Head", (0.0,  0.30, 0.05),  1.0, None, MotionMode.RELATIVE),
 
     # centro dell'iride dell'occhio
-    "Eye_L":          (473, 1,    "Head", (0.2, -0.2,  0.2),   1.0, None, MotionMode.RELATIVE),
-    "Eye_R":          (468, 1,    "Head", (-0.2, -0.2,  0.2),  1.0, None, MotionMode.RELATIVE),
+    "Eye.L":          (473, 1,    "Head", (0.2, -0.2,  0.2),   1.0, None, MotionMode.RELATIVE),
+    "Eye.R":          (468, 1,    "Head", (-0.2, -0.2,  0.2),  1.0, None, MotionMode.RELATIVE),
 
     # Palpebre
-    "Eyelid_Up_L":    (386, 1,    "Head", (0.2, -0.22, 0.26),  1.15, _EYE_L, MotionMode.RELATIVE),
-    "Eyelid_Low_L":   (374, 1,    "Head", (0.2, -0.22, 0.14),  1.15, _EYE_L, MotionMode.RELATIVE),
-    "Eyelid_Up_R":    (159, 1,    "Head", (-0.2, -0.22, 0.26), 1.15, _EYE_R, MotionMode.RELATIVE),
-    "Eyelid_Low_R":   (145, 1,    "Head", (-0.2, -0.22, 0.14), 1.15, _EYE_R, MotionMode.RELATIVE),
+    "Eyelid_Up.L":    (386, 1,    "Head", (0.2, -0.22, 0.26),  1.15, _EYE_L, MotionMode.RELATIVE),
+    "Eyelid_Low.L":   (374, 1,    "Head", (0.2, -0.22, 0.14),  1.15, _EYE_L, MotionMode.RELATIVE),
+    "Eyelid_Up.R":    (159, 1,    "Head", (-0.2, -0.22, 0.26), 1.15, _EYE_R, MotionMode.RELATIVE),
+    "Eyelid_Low.R":   (145, 1,    "Head", (-0.2, -0.22, 0.14), 1.15, _EYE_R, MotionMode.RELATIVE),
 
-    "Brow_L":         (334, 1,    "Head", (0.2, -0.25, 0.4),   1.2, None, MotionMode.RELATIVE),
-    "Brow_R":         (105, 1,    "Head", (-0.2, -0.25, 0.4),  1.2, None, MotionMode.RELATIVE),
+    "Brow.L":         (334, 1,    "Head", (0.2, -0.25, 0.4),   1.2, None, MotionMode.RELATIVE),
+    "Brow.R":         (105, 1,    "Head", (-0.2, -0.25, 0.4),  1.2, None, MotionMode.RELATIVE),
 
     # Labbra: 5 punti di controllo per labbro (angolo, meta', centro, meta',
     # angolo).
     "Lip_Upper":      (0,   1,    "Head", (0.0, -0.2, -0.24),       0.7, _MOUTH, MotionMode.RELATIVE),
-    "Lip_Upper_L":    (269, 1,    "Head", (0.08, -0.18, -0.26),     0.7, _MOUTH, MotionMode.RELATIVE),
-    "Lip_Upper_R":    (39,  1,    "Head", (-0.08, -0.18, -0.26),    0.7, _MOUTH, MotionMode.RELATIVE),
+    "Lip_Upper.L":    (269, 1,    "Head", (0.08, -0.18, -0.26),     0.7, _MOUTH, MotionMode.RELATIVE),
+    "Lip_Upper.R":    (39,  1,    "Head", (-0.08, -0.18, -0.26),    0.7, _MOUTH, MotionMode.RELATIVE),
     "Lip_Lower":      (17,  152,  "Jaw",  (0.0, -0.2, -0.36),       1.0, _MOUTH, MotionMode.RELATIVE),
-    "Lip_Lower_L":    (405, 152,  "Jaw",  (0.08, -0.18, -0.34),     1.0, _MOUTH, MotionMode.RELATIVE),
-    "Lip_Lower_R":    (181, 152,  "Jaw",  (-0.08, -0.18, -0.34),    1.0, _MOUTH, MotionMode.RELATIVE),
+    "Lip_Lower.L":    (405, 152,  "Jaw",  (0.08, -0.18, -0.34),     1.0, _MOUTH, MotionMode.RELATIVE),
+    "Lip_Lower.R":    (181, 152,  "Jaw",  (-0.08, -0.18, -0.34),    1.0, _MOUTH, MotionMode.RELATIVE),
 
-    "Mouth_Corner_L": (291, 152,  "Jaw",  (0.15, -0.15, -0.3),      1.0, _MOUTH, MotionMode.RELATIVE),
-    "Mouth_Corner_R": (61,  152,  "Jaw",  (-0.15, -0.15, -0.3),     1.0, _MOUTH, MotionMode.RELATIVE),
+    "Mouth_Corner.L": (291, 152,  "Jaw",  (0.15, -0.15, -0.3),      1.0, _MOUTH, MotionMode.RELATIVE),
+    "Mouth_Corner.R": (61,  152,  "Jaw",  (-0.15, -0.15, -0.3),     1.0, _MOUTH, MotionMode.RELATIVE),
 }
 #landmark bones
 #notes display these as 
