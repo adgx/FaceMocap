@@ -68,7 +68,9 @@ class FACEMOCAP_OT_create_advance_armature(bpy.types.Operator):
         FM_facial_coll.objects.link(arm_obj)
 
         #select the arm
-        bpy.ops.object.select_all(action='DESELECT')
+        for obj in context.view_layer.objects:
+            obj.select_set(False)
+            
         arm_obj.select_set(True)
         context.view_layer.objects.active = arm_obj
 
