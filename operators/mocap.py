@@ -5,8 +5,8 @@ from mathutils import Quaternion, Vector
 
 from ..core import solver
 from ..core import config
-from ..core.config import FACE_MAPPING, LM_FOREHEAD, LM_NASION, LM_SIDE_L, LM_SIDE_R
-from ..core.rig import find_rig
+from ..core.config import MotionMode, FACE_MAPPING, LANDMARKERS_FACE_MAPPING, LM_FOREHEAD, LM_NASION, LM_SIDE_L, LM_SIDE_R
+from ..core.rig import find_rig, LANDMARKS_RIG_NAME
 from ..core.webcam_core import FaceTracker
 from .diagnostics import stampa_tabella_scale
 
@@ -17,6 +17,12 @@ TRACKED_INDICES = sorted(
     | {LM_SIDE_R, LM_SIDE_L, LM_FOREHEAD, LM_NASION}
 )
 
+ADVANCE_TRACKED_INDICES = sorted(
+    {data.landmark for data in LANDMARKERS_FACE_MAPPING.values()}
+    | {data.parent_landmark for data in LANDMARKERS_FACE_MAPPING.values()
+       if data.parent_landmark is not None}
+    | {LM_SIDE_R, LM_SIDE_L, LM_FOREHEAD, LM_NASION}
+)
 
 def _gain_gruppo(bone_name):
     """Moltiplicatore d'ampiezza del gruppo a cui l'osso appartiene."""
@@ -31,18 +37,27 @@ def _gain_gruppo(bone_name):
 
 class _Voce(NamedTuple):
     osso: str
+    #Mediapipe relationship
     landmark: int
-    genitore: int
+    genitore: int | None
+    #Mirrored mediapipe relationship 
     landmark_speculare: int
     genitore_speculare: int
     gain: float               # gain per-osso gia' moltiplicato per quello di gruppo
     rotazione: bool           # osso a leva (mandibola) invece che in traslazione
+    #type of motion
+    motion_mode: MotionMode
 
-
-def _piano_ossa():
+#to review in way to adapt it for the advance_rig
+def _piano_ossa(rig) -> list[_Voce]:
     voci = []
-    for nome, data in FACE_MAPPING.items():
-        speculare = FACE_MAPPING[solver.mirrored_bone_name(nome)]
+    if rig.name == LANDMARKS_RIG_NAME:
+        mapping = LANDMARKERS_FACE_MAPPING
+    else: 
+        mapping = FACE_MAPPING
+
+    for nome, data in mapping.items():
+        speculare = mapping[solver.mirrored_bone_name(nome)]
         voci.append(_Voce(
             osso=nome,
             landmark=data.landmark,
@@ -51,16 +66,20 @@ def _piano_ossa():
             genitore_speculare=speculare.parent_landmark,
             gain=data.gain * _gain_gruppo(nome),
             rotazione=nome in config.ROTATION_BONES,
+            motion_mode= data.motion_mode
         ))
     return voci
 
-
-PIANO_OSSA = _piano_ossa()
-
-
 def reset_rig_pose(rig):
-    """Riporta a riposo le ossa gestite dal mocap."""
-    for bone_name in FACE_MAPPING:
+    """Riporta a riposo le ossa gestite dal mocap.
+       Reset the bone location position and rotation
+    """
+    if rig.name == LANDMARKS_RIG_NAME:
+            mapping = LANDMARKERS_FACE_MAPPING
+    else: 
+        mapping = FACE_MAPPING
+
+    for bone_name in mapping:
         pose_bone = rig.pose.bones.get(bone_name)
         if not pose_bone:
             continue
@@ -70,33 +89,43 @@ def reset_rig_pose(rig):
         else:
             pose_bone.rotation_euler = (0.0, 0.0, 0.0)
 
+####################################################
+#               Operators Classes                  #
+####################################################
 
 class FACEMOCAP_OT_reset_pose(bpy.types.Operator):
-    """Riporta l'armatura alla rest pose"""
+    """Riporta l'armatura alla rest pose
+       Reset pose to the default
+    """
     bl_idname = "facemocap.reset_pose"
-    bl_label = "Azzera Posa"
+    bl_label = "Reset pose"
+    bl_description = "Reset the pose to the default"
     bl_options = {'REGISTER', 'UNDO'}
 
-    def execute(self, context):
+    def execute(self, context: bpy.types.Context) -> set[str]:
         rig = find_rig(context)
         if not rig:
-            self.report({'ERROR'}, "Armatura FaceMocap non trovata.")
+            self.report({'ERROR'}, "Armatura FaceMocap not found.")
             return {'CANCELLED'}
         reset_rig_pose(rig)
         return {'FINISHED'}
 
 
 class FACEMOCAP_OT_start_capture(bpy.types.Operator):
-    """Avvia la motion capture facciale. ESC per fermare, C per ricalibrare"""
+    """Avvia la motion capture facciale. ESC per fermare, C per ricalibrare
+       Start the facial motion capture. Esc to stop, and C for recalibrating 
+    """
     bl_idname = "facemocap.start_capture"
-    bl_label = "Avvia Motion Capture"
-
+    bl_label = "Start Motion Capture"
+    bl_description = "Creation of the armatrue for the motion capture"
+    PIANO_OSSA: list[_Voce] = []
     _timer = None
     _tracker = None
     _area = None
     _rig = None
+    _track_idx = TRACKED_INDICES
 
-    def _begin_calibration(self, context):
+    def _begin_calibration(self, context: bpy.types.Context) -> None:
         """Azzera la posa e riparte a raccogliere la posa neutra."""
         self._calib_left = config.CALIBRATION_FRAMES
         self._calib_sum = {}
@@ -114,7 +143,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
 
         reset_rig_pose(self._rig)
 
-    def _accumulate_calibration(self, local, origin, rot, scale):
+    def _accumulate_calibration(self, local, origin, rot, scale) -> None:
         for idx, vec in local.items():
             if idx in self._calib_sum:
                 self._calib_sum[idx] += vec
@@ -131,7 +160,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
 
         self._calib_left -= 1
 
-    def _finish_calibration(self, context):
+    def _finish_calibration(self, context: bpy.types.Context) -> bool:
         count = len(self._calib_quats)
         if count == 0:
             return False
@@ -152,7 +181,8 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         dett_unit = {}
         self._unit_scale = solver.solve_unit_scale(self._rig, self._neutral, dett_unit)
         if self._unit_scale is None:
-            self.report({'WARNING'}, "Impossibile stimare la scala del rig: controlla le posizioni delle ossa.")
+            #self.report({'WARNING'}, "Impossibile stimare la scala del rig: controlla le posizioni delle ossa.")
+            self.report({'WARNING'}, "Unable to estimate rig's scale: check the bones' postions.")
             return False
         
         dett_scale = {}
@@ -162,13 +192,18 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
 
         stampa_tabella_scale(self._unit_scale, dett_unit, dett_scale)
 
-        self.report({'INFO'}, "Calibrato. Scala rig: %.4f unita' per larghezza "
-                    "viso. Tabella delle scale nella console di sistema."
+        #self.report({'INFO'}, "Calibrato. Scala rig: %.4f unita' per larghezza "
+        #            "viso. Tabella delle scale nella console di sistema."
+        #            % self._unit_scale)
+                    
+        self.report({'INFO'}, "Calibrated. Rig's scale: %.4f unit per width"
+                    "face. Table scale on console."
                     % self._unit_scale)
+
         return True
 
 
-    def _apply_pose(self, context, local, origin, rot, scale):
+    def _apply_pose(self, context: bpy.types.Context, local, origin, rot, scale):
         settings = context.scene.facemocap
         alpha = 1.0 - config.SMOOTHING
 
@@ -179,8 +214,9 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             if idx in self._neutral
         }
 
-        for voce in PIANO_OSSA:
+        for voce in FACEMOCAP_OT_start_capture.PIANO_OSSA:
             pose_bone = self._rig.pose.bones.get(voce.osso)
+            
             if not pose_bone:
                 continue
 
@@ -189,16 +225,29 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             else:
                 lm_idx, parent_idx = voce.landmark, voce.genitore
 
-            if parent_idx is None:
+            if parent_idx is None and voce.motion_mode == MotionMode.HEAD:
                 target = self._solve_head_translation(settings, origin, scale) * voce.gain
             else:
-                if lm_idx not in deltas or parent_idx not in deltas:
-                    continue
-                relative = deltas[lm_idx] - deltas[parent_idx]
-                scale_b = self._bone_scales.get(voce.osso, self._unit_scale)
-                target = solver.head_local_to_blender(relative, settings.mirror_x) * (
-                    scale_b * config.AMPLITUDE * voce.gain
-                )
+                if parent_idx is not None and voce.motion_mode == MotionMode.RELATIVE: 
+                    if lm_idx not in deltas or parent_idx not in deltas:
+                        continue
+                    relative = deltas[lm_idx] - deltas[parent_idx]
+                    scale_b = self._bone_scales.get(voce.osso, self._unit_scale)
+                    target = solver.head_local_to_blender(relative, settings.mirror_x) * (
+                        scale_b * config.AMPLITUDE * voce.gain
+                    )
+                elif voce.motion_mode == MotionMode.LANDMARK:
+                    if lm_idx not in deltas:
+                        continue
+                    scale_b = self._bone_scales.get(
+                        voce.osso,
+                        self._unit_scale
+                    )
+                    target = solver.head_local_to_blender(
+                        deltas[lm_idx],
+                        settings.mirror_x
+                    ) * (scale_b * config.AMPLITUDE * voce.gain)
+
 
                 if voce.rotazione:
                     if self._apply_lever_rotation(pose_bone, voce.osso, target, alpha):
@@ -214,7 +263,9 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         self._apply_head_rotation(context, rot, alpha)
 
     def _warn_bad_lever(self, bone_name):
-        """Avvisa una sola volta che l'osso non e' orientato come una leva."""
+        """Avvisa una sola volta che l'osso non e' orientato come una leva.
+        
+        """
         if bone_name in self._warned_bones:
             return
         self._warned_bones.add(bone_name)
@@ -226,7 +277,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             % bone_name,
         )
 
-    def _apply_lever_rotation(self, pose_bone, bone_name, tip_delta, alpha):
+    def _apply_lever_rotation(self, pose_bone, bone_name, tip_delta, alpha) -> bool:
         """Applica a un osso a leva (la mandibola) la rotazione corrispondente."""
         armature_rot = solver.solve_rotation_from_lever(pose_bone, tip_delta)
         if armature_rot is None:
@@ -246,7 +297,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
 
     def _solve_head_translation(self, settings, origin, scale):
         """Spostamento della testa nello spazio, in unita' armatura."""
-        #diviso per la scala corrente quinfi il risultato e' "quante larghezze di
+        #diviso per la scala corrente quindi il risultato e' "quante larghezze di
         # viso si e' spostata la testa", quindi indipendente dalla distanza.
         offset = (origin - self._neutral_origin) / scale
 
@@ -279,62 +330,75 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             pose_bone.rotation_mode = 'QUATERNION'
         pose_bone.rotation_quaternion = self._smoothed_quat
 
-
-    def modal(self, context, event):
+    #Handel the keywork events for the motion capture
+    def modal(self, context: bpy.types.Context, event: bpy.types.Event) -> set[str]:
+        """Handel the keywork events for the motion capture"""
         if event.type in {'RIGHTMOUSE', 'ESC'}:
             self.cancel(context)
             return {'CANCELLED'}
 
         if event.type == 'C' and event.value == 'PRESS':
             self._begin_calibration(context)
-            self._set_header(context, "Ricalibrazione: mantieni il viso neutro")
+            #self._set_header(context, "Ricalibrazione: mantieni il viso neutro")
+            self._set_header(context, "Recalibrating: keep a relaxed facial expression.")
             return {'RUNNING_MODAL'}
 
         if event.type != 'TIMER':
             return {'PASS_THROUGH'}
-
-        lettura = self._tracker.read_landmarks()
-        if lettura is None:
+        
+        #reading landmarks information
+        results = self._tracker.read_landmarks()
+        if results is None:
             return {'PASS_THROUGH'}
-        landmarks, aspect = lettura
-
+        landmarks, aspect = results
+        #ok
         head_frame = solver.build_head_frame(landmarks, aspect)
         if head_frame is None:
             return {'PASS_THROUGH'}
         origin, rot, scale = head_frame
-
-        local = solver.to_head_local(landmarks, TRACKED_INDICES, origin, rot, scale, aspect)
+        #ok
+        local = solver.to_head_local(landmarks, self._track_idx, origin, rot, scale, aspect)
 
         if self._neutral is None:
             self._accumulate_calibration(local, origin, rot, scale)
             if self._calib_left > 0:
-                self._set_header(context, "Mantieni il viso neutro... %d" % self._calib_left)
+                self._set_header(context, "keep a relaxed facial expression.... %d" % self._calib_left)
             elif not self._finish_calibration(context):
                 self.cancel(context)
                 return {'CANCELLED'}
             else:
-                self._set_header(context, "Mocap attivo | ESC = stop | C = ricalibra")
+                self._set_header(context, "Mocap actived | ESC = stop | C = Ricalibration")
         else:
+            #to see
             self._apply_pose(context, local, origin, rot, scale)
 
+        #to see
         if self._area:
             self._area.tag_redraw()
 
         return {'PASS_THROUGH'}
 
-    def _set_header(self, context, text):
+    def _set_header(self, context, text) -> None:
         if self._area:
             self._area.header_text_set("FaceMocap: " + text)
 
-    def execute(self, context):
+    def _get_track_index(self, rig):
+        if rig.name == LANDMARKS_RIG_NAME:
+            return ADVANCE_TRACKED_INDICES
+        return TRACKED_INDICES
+
+    def execute(self, context: bpy.types.Context) -> set[str]:
         self._rig = find_rig(context)
+        self._track_idx = self._get_track_index(self._rig)
+        FACEMOCAP_OT_start_capture.PIANO_OSSA = _piano_ossa(self._rig)
+        
         if not self._rig:
-            self.report({'ERROR'}, "Armatura FaceMocap non trovata. Generala prima di avviare.")
+            self.report({'ERROR'}, "FaceMocap rig not found. Generate it before starting.")
             return {'CANCELLED'}
 
         self._tracker = FaceTracker()
         if not self._tracker.start():
-            self.report({'ERROR'}, "Impossibile avviare la webcam.")
+            self.report({'ERROR'}, "Unable to start the webcam.")
             return {'CANCELLED'}
 
         if context.mode != 'OBJECT':
@@ -346,16 +410,16 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
 
         self._area = context.area if context.area and context.area.type == 'VIEW_3D' else None
         self._begin_calibration(context)
-        self._set_header(context, "Mantieni il viso neutro...")
+        self._set_header(context, "keep a relaxed facial expression...")
 
         wm = context.window_manager
         self._timer = wm.event_timer_add(0.03, window=context.window)
         wm.modal_handler_add(self)
 
-        self.report({'INFO'}, "Motion Capture avviata. ESC per fermare, C per ricalibrare.")
+        self.report({'INFO'}, "Motion Capture started. Press ESC to stop, C to recalibrate.")
         return {'RUNNING_MODAL'}
 
-    def cancel(self, context):
+    def cancel(self, context: bpy.types.Context) -> set[str]:
         wm = context.window_manager
         if self._timer:
             wm.event_timer_remove(self._timer)
@@ -366,4 +430,4 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         if self._area:
             self._area.header_text_set(None)
             self._area = None
-        self.report({'INFO'}, "Motion Capture fermata.")
+        self.report({'INFO'}, "Motion Capture stopped.")
