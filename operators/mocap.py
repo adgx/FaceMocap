@@ -5,7 +5,7 @@ from mathutils import Quaternion, Vector
 
 from ..core import solver
 from ..core import config
-from ..core.config import FACE_MAPPING, LANDMARKERS_FACE_MAPPING, LM_FOREHEAD, LM_NASION, LM_SIDE_L, LM_SIDE_R
+from ..core.config import MotionMode, FACE_MAPPING, LANDMARKERS_FACE_MAPPING, LM_FOREHEAD, LM_NASION, LM_SIDE_L, LM_SIDE_R
 from ..core.rig import find_rig, LANDMARKS_RIG_NAME
 from ..core.webcam_core import FaceTracker
 from .diagnostics import stampa_tabella_scale
@@ -37,12 +37,16 @@ def _gain_gruppo(bone_name):
 
 class _Voce(NamedTuple):
     osso: str
+    #Mediapipe relationship
     landmark: int
-    genitore: int
+    genitore: int | None
+    #Mirrored mediapipe relationship 
     landmark_speculare: int
     genitore_speculare: int
     gain: float               # gain per-osso gia' moltiplicato per quello di gruppo
     rotazione: bool           # osso a leva (mandibola) invece che in traslazione
+    #type of motion
+    motion_mode: MotionMode
 
 #to review in way to adapt it for the advance_rig
 def _piano_ossa(rig) -> list[_Voce]:
@@ -62,6 +66,7 @@ def _piano_ossa(rig) -> list[_Voce]:
             genitore_speculare=speculare.parent_landmark,
             gain=data.gain * _gain_gruppo(nome),
             rotazione=nome in config.ROTATION_BONES,
+            motion_mode= data.motion_mode
         ))
     return voci
 
@@ -113,7 +118,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
     bl_idname = "facemocap.start_capture"
     bl_label = "Start Motion Capture"
     bl_description = "Creation of the armatrue for the motion capture"
-    PIANO_OSSA: list[_Voce] = None
+    PIANO_OSSA: list[_Voce] = []
     _timer = None
     _tracker = None
     _area = None
@@ -220,16 +225,29 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             else:
                 lm_idx, parent_idx = voce.landmark, voce.genitore
 
-            if parent_idx is None:
+            if parent_idx is None and voce.motion_mode == MotionMode.HEAD:
                 target = self._solve_head_translation(settings, origin, scale) * voce.gain
             else:
-                if lm_idx not in deltas or parent_idx not in deltas:
-                    continue
-                relative = deltas[lm_idx] - deltas[parent_idx]
-                scale_b = self._bone_scales.get(voce.osso, self._unit_scale)
-                target = solver.head_local_to_blender(relative, settings.mirror_x) * (
-                    scale_b * config.AMPLITUDE * voce.gain
-                )
+                if parent_idx is not None and voce.motion_mode == MotionMode.RELATIVE: 
+                    if lm_idx not in deltas or parent_idx not in deltas:
+                        continue
+                    relative = deltas[lm_idx] - deltas[parent_idx]
+                    scale_b = self._bone_scales.get(voce.osso, self._unit_scale)
+                    target = solver.head_local_to_blender(relative, settings.mirror_x) * (
+                        scale_b * config.AMPLITUDE * voce.gain
+                    )
+                elif voce.motion_mode == MotionMode.LANDMARK:
+                    if lm_idx not in deltas:
+                        continue
+                    scale_b = self._bone_scales.get(
+                        voce.osso,
+                        self._unit_scale
+                    )
+                    target = solver.head_local_to_blender(
+                        deltas[lm_idx],
+                        settings.mirror_x
+                    ) * (scale_b * config.AMPLITUDE * voce.gain)
+
 
                 if voce.rotazione:
                     if self._apply_lever_rotation(pose_bone, voce.osso, target, alpha):
