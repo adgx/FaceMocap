@@ -5,7 +5,7 @@ from mathutils import Quaternion, Vector
 
 from ..core import solver
 from ..core import config
-from ..core.config import MotionMode, FACE_MAPPING, LANDMARKERS_FACE_MAPPING, LM_FOREHEAD, LM_NASION, LM_SIDE_L, LM_SIDE_R
+from ..core.config import MotionMode, LandmarkSample, FACE_MAPPING, LANDMARKERS_FACE_MAPPING, LM_FOREHEAD, LM_NASION, LM_SIDE_L, LM_SIDE_R
 from ..core.rig import find_rig, LANDMARKS_RIG_NAME
 from ..core.webcam_core import FaceTracker
 from .diagnostics import stampa_tabella_scale
@@ -358,6 +358,21 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         origin, rot, scale = head_frame
         #ok
         local = solver.to_head_local(landmarks, self._track_idx, origin, rot, scale, aspect)
+        #added: landmark sample concept
+        samples = {}
+
+        for idx, curr in local.items():
+            neutral = self._neutral.get(idx)
+
+            if neutral is None:
+                continue
+
+            samples[idx] = LandmarkSample(
+                idx=idx,
+                pos=curr,
+                neutral_pos=neutral,
+                delta=curr - neutral
+            )
 
         if self._neutral is None:
             self._accumulate_calibration(local, origin, rot, scale)
@@ -431,3 +446,28 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             self._area.header_text_set(None)
             self._area = None
         self.report({'INFO'}, "Motion Capture stopped.")
+
+#added: calculate position and place in the blender space the marker bone associated to the landmark 
+def solve_landmark_bone(self, pose_bone, landmark_delta, scale):
+    target = solver.head_local_to_blender(landmark_delta, self._settigns.mirror_x)
+    target *= scale * config.AMPLITUDE
+    pose_bone.location = solver.to_bone_space(pose_bone, target)
+
+#added: compute a frame (orthonormal base for a given point)
+def make_frame(a, b, up):
+    x = (b - a).normalized()
+    z = x.cross(up)
+
+    if z.length < 1e-6:
+        return None
+
+    z.normalize()
+
+    y = z.cross(x)
+    y.normalize()
+
+    return Matrix((x, y, z)).transposed()
+
+#delta rotation is obtained as delta_rot = (current_frame @ neutral_frame.transposed()) 
+#where the transposed is the negative rotation captured at neutral pose, so compute the
+#current frame rotation is possible with a matrix product compute the rotation variation
