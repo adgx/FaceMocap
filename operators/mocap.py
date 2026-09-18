@@ -290,35 +290,43 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             self._set_header(context, "Ricalibrazione: mantieni il viso neutro")
             return {'RUNNING_MODAL'}
 
-        if event.type != 'TIMER':
-            return {'PASS_THROUGH'}
+        if event.type == 'TIMER':
+            settings = context.scene.facemocap
+            
+            if not settings.show_preview and self._tracker.show_preview:
+                self._tracker.show_preview = False
+            
+            if not self._tracker.show_preview and settings.show_preview:
+                settings.show_preview = False
+                if self._area:
+                    self._area.tag_redraw()
 
-        lettura = self._tracker.read_landmarks()
-        if lettura is None:
-            return {'PASS_THROUGH'}
-        landmarks, aspect = lettura
+            lettura = self._tracker.read_landmarks()
+            if lettura is None:
+                return {'PASS_THROUGH'}
+            
+            landmarks, aspect = lettura
+            head_frame = solver.build_head_frame(landmarks, aspect)
+            if head_frame is None:
+                return {'PASS_THROUGH'}
+            
+            origin, rot, scale = head_frame
+            local = solver.to_head_local(landmarks, TRACKED_INDICES, origin, rot, scale, aspect)
 
-        head_frame = solver.build_head_frame(landmarks, aspect)
-        if head_frame is None:
-            return {'PASS_THROUGH'}
-        origin, rot, scale = head_frame
-
-        local = solver.to_head_local(landmarks, TRACKED_INDICES, origin, rot, scale, aspect)
-
-        if self._neutral is None:
-            self._accumulate_calibration(local, origin, rot, scale)
-            if self._calib_left > 0:
-                self._set_header(context, "Mantieni il viso neutro... %d" % self._calib_left)
-            elif not self._finish_calibration(context):
-                self.cancel(context)
-                return {'CANCELLED'}
+            if self._neutral is None:
+                self._accumulate_calibration(local, origin, rot, scale)
+                if self._calib_left > 0:
+                    self._set_header(context, "Mantieni il viso neutro... %d" % self._calib_left)
+                elif not self._finish_calibration(context):
+                    self.cancel(context)
+                    return {'CANCELLED'}
+                else:
+                    self._set_header(context, "Mocap attivo | ESC = stop | C = ricalibra")
             else:
-                self._set_header(context, "Mocap attivo | ESC = stop | C = ricalibra")
-        else:
-            self._apply_pose(context, local, origin, rot, scale)
+                self._apply_pose(context, local, origin, rot, scale)
 
-        if self._area:
-            self._area.tag_redraw()
+            if self._area:
+                self._area.tag_redraw()
 
         return {'PASS_THROUGH'}
 
@@ -327,12 +335,15 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             self._area.header_text_set("FaceMocap: " + text)
 
     def execute(self, context):
+        settings = context.scene.facemocap
+
         self._rig = find_rig(context)
         if not self._rig:
             self.report({'ERROR'}, "Armatura FaceMocap non trovata. Generala prima di avviare.")
             return {'CANCELLED'}
 
-        self._tracker = FaceTracker()
+        self._tracker = FaceTracker(show_preview=settings.show_preview)
+
         if not self._tracker.start():
             self.report({'ERROR'}, "Impossibile avviare la webcam.")
             return {'CANCELLED'}

@@ -10,6 +10,12 @@ class FACEMOCAP_PG_settings(bpy.types.PropertyGroup):
         default=False,
     )
 
+    show_preview: bpy.props.BoolProperty(
+        name="Mostra Video Webcam",
+        description="Apre la finestra pop-up con il video e i landmark",
+        default=True
+    )
+
 
 def register():
     bpy.types.Scene.facemocap = bpy.props.PointerProperty(type=FACEMOCAP_PG_settings)

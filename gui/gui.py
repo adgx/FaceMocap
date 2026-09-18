@@ -34,7 +34,10 @@ class FACEMOCAP_PT_main_panel(bpy.types.Panel):
         box_mocap = layout.box()
         box_mocap.label(text="3. Animazione", icon='ANIM')
         settings = context.scene.facemocap
+        
         box_mocap.prop(settings, "mirror_x")
+        box_mocap.prop(settings, "show_preview")
+
         box_mocap.operator("facemocap.start_capture", text="Avvia Motion Capture", icon='PLAY')
         box_mocap.operator("facemocap.reset_pose", text="Azzera Posa", icon='LOOP_BACK')
         box_mocap.label(text="ESC = stop | C = ricalibra")
