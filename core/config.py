@@ -8,6 +8,8 @@ class MotionMode(Enum):
     LANDMARK = "LANDMARK"
     RELATIVE = "RELATIVE"
     TRANSLATION = "TRANSLATION"
+    ROTATION = "ROTATION"
+    AIM = "AIM"
 
 @dataclass
 class LandmarkSample:
@@ -19,7 +21,7 @@ class LandmarkSample:
 @dataclass(frozen=True)
 class LandmarkBoneMap:
     bone: str
-    landmark: int
+    id_landmark: int
     parent_landmark: int | None
     parent_bone: str | None
     rest_position: tuple[float, float, float]
@@ -74,97 +76,97 @@ _TABELLA = {
 }
 
 #landmark mapping (source skeleton)
-_LANDMARKS_MAP = {
+LANDMARKS_MAP = {
     ##################################################################
     #                              Lips                              #
     ##################################################################
-    "LMK-Lip_corner.R":         LandmarkBoneMap(bone="LMK-Lip_corner.R",    landmark=61,    parent_landmark=None,   parent_bone="LMK-Root",   rest_position=(-0.033,  -0.063,     0.269),     motion_mode=MotionMode.LANDMARK),
-    "LMK-Lip_corner.L":         LandmarkBoneMap(bone="LMK-Lip_corner.L",    landmark=291,   parent_landmark=None,   parent_bone="LMK-Root",   rest_position=(0.033,   -0.063,     0.269),     motion_mode=MotionMode.LANDMARK),
-    "LMK-Lip_main_upp":         LandmarkBoneMap(bone="LMK-Lip_main_upp",    landmark=0,     parent_landmark=None,   parent_bone="LMK-Root",   rest_position=(0.0,     -0.085,     0.282),     motion_mode=MotionMode.LANDMARK),
-    "LMK-Lip_upp1.R":           LandmarkBoneMap(bone="LMK-Lip_upp1.R",      landmark=37,    parent_landmark=None,   parent_bone="LMK-Root",   rest_position=(-0.011,   -0.085,     0.281),    motion_mode=MotionMode.LANDMARK),
-    "LMK-Lip_upp2.R":           LandmarkBoneMap(bone="LMK-Lip_upp2.R",      landmark=39,    parent_landmark=None,   parent_bone="LMK-Root",   rest_position=(-0.019,   -0.078,     0.279),    motion_mode=MotionMode.LANDMARK),
-    "LMK-Lip_upp1.L":           LandmarkBoneMap(bone="LMK-Lip_upp1.L",      landmark=267,   parent_landmark=None,   parent_bone="LMK-Root",   rest_position=(0.011,   -0.085,     0.281),     motion_mode=MotionMode.LANDMARK),
-    "LMK-Lip_upp2.L":           LandmarkBoneMap(bone="LMK-Lip_upp2.L",      landmark=269,   parent_landmark=None,   parent_bone="LMK-Root",   rest_position=(0.019,   -0.078,     0.279),     motion_mode=MotionMode.LANDMARK),
+    "LMK-Lip_corner.R":         LandmarkBoneMap(bone="LMK-Lip_corner.R",    id_landmark=61,    parent_landmark=None,   parent_bone="LMK-Root",   rest_position=(-0.033,  -0.063,     0.269),     motion_mode=MotionMode.LANDMARK),
+    "LMK-Lip_corner.L":         LandmarkBoneMap(bone="LMK-Lip_corner.L",    id_landmark=291,   parent_landmark=None,   parent_bone="LMK-Root",   rest_position=(0.033,   -0.063,     0.269),     motion_mode=MotionMode.LANDMARK),
+    "LMK-Lip_main_upp":         LandmarkBoneMap(bone="LMK-Lip_main_upp",    id_landmark=0,     parent_landmark=None,   parent_bone="LMK-Root",   rest_position=(0.0,     -0.085,     0.282),     motion_mode=MotionMode.LANDMARK),
+    "LMK-Lip_upp1.R":           LandmarkBoneMap(bone="LMK-Lip_upp1.R",      id_landmark=37,    parent_landmark=None,   parent_bone="LMK-Root",   rest_position=(-0.011,   -0.085,     0.281),    motion_mode=MotionMode.LANDMARK),
+    "LMK-Lip_upp2.R":           LandmarkBoneMap(bone="LMK-Lip_upp2.R",      id_landmark=39,    parent_landmark=None,   parent_bone="LMK-Root",   rest_position=(-0.019,   -0.078,     0.279),    motion_mode=MotionMode.LANDMARK),
+    "LMK-Lip_upp1.L":           LandmarkBoneMap(bone="LMK-Lip_upp1.L",      id_landmark=267,   parent_landmark=None,   parent_bone="LMK-Root",   rest_position=(0.011,   -0.085,     0.281),     motion_mode=MotionMode.LANDMARK),
+    "LMK-Lip_upp2.L":           LandmarkBoneMap(bone="LMK-Lip_upp2.L",      id_landmark=269,   parent_landmark=None,   parent_bone="LMK-Root",   rest_position=(0.019,   -0.078,     0.279),     motion_mode=MotionMode.LANDMARK),
     
-    "LMK-Lip_main_low":         LandmarkBoneMap(bone="LMK-Lip_main_low",     landmark=17,    parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.0,    -0.078,   0.257), motion_mode=MotionMode.LANDMARK),
-    "LMK-Lip_low1.R":           LandmarkBoneMap(bone="LMK-Lip_low1.R",       landmark=84,    parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.012,  -0.076, 0.257),  motion_mode=MotionMode.LANDMARK),
-    "LMK-Lip_low2.R":           LandmarkBoneMap(bone="LMK-Lip_low2.R",       landmark=181,   parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.020,  -0.072, 0.257),  motion_mode=MotionMode.LANDMARK),
-    "LMK-Lip_low1.L":           LandmarkBoneMap(bone="LMK-Lip_low1.L",       landmark=314,   parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.012,  -0.076, 0.257),   motion_mode=MotionMode.LANDMARK),
-    "LMK-Lip_low2.L":           LandmarkBoneMap(bone="LMK-Lip_low2.L",       landmark=405,   parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.020,  -0.072, 0.257),   motion_mode=MotionMode.LANDMARK),
+    "LMK-Lip_main_low":         LandmarkBoneMap(bone="LMK-Lip_main_low",     id_landmark=17,    parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.0,    -0.078,   0.257), motion_mode=MotionMode.LANDMARK),
+    "LMK-Lip_low1.R":           LandmarkBoneMap(bone="LMK-Lip_low1.R",       id_landmark=84,    parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.012,  -0.076, 0.257),  motion_mode=MotionMode.LANDMARK),
+    "LMK-Lip_low2.R":           LandmarkBoneMap(bone="LMK-Lip_low2.R",       id_landmark=181,   parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.020,  -0.072, 0.257),  motion_mode=MotionMode.LANDMARK),
+    "LMK-Lip_low1.L":           LandmarkBoneMap(bone="LMK-Lip_low1.L",       id_landmark=314,   parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.012,  -0.076, 0.257),   motion_mode=MotionMode.LANDMARK),
+    "LMK-Lip_low2.L":           LandmarkBoneMap(bone="LMK-Lip_low2.L",       id_landmark=405,   parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.020,  -0.072, 0.257),   motion_mode=MotionMode.LANDMARK),
 
     ##################################################################
     #                              Eye                               #
     ##################################################################
-    "LMK-Eye.L":          LandmarkBoneMap(bone="LMK-Eye.L", landmark=474, parent_landmark=None,    parent_bone="LMK-Root",  rest_position=(0.049,    -0.133,  0.378), motion_mode=MotionMode.LANDMARK),
-    "LMK-Eye.R":          LandmarkBoneMap(bone="LMK-Eye.R", landmark=469, parent_landmark=None,    parent_bone="LMK-Root",  rest_position=(-0.049,   -0.133,  0.378), motion_mode=MotionMode.LANDMARK),
+    "LMK-Eye.L":          LandmarkBoneMap(bone="LMK-Eye.L", id_landmark=474, parent_landmark=None,    parent_bone="LMK-Root",  rest_position=(0.049,    -0.133,  0.378), motion_mode=MotionMode.LANDMARK),
+    "LMK-Eye.R":          LandmarkBoneMap(bone="LMK-Eye.R", id_landmark=469, parent_landmark=None,    parent_bone="LMK-Root",  rest_position=(-0.049,   -0.133,  0.378), motion_mode=MotionMode.LANDMARK),
 
     ##################################################################
     #                            Eyelid                              #
     ##################################################################
-    "LMK-Eyelid_corner_in.L":   (398, None,    "LMK-Root", (0.025, -0.048, 0.372),  1.0, None, MotionMode.LANDMARK),
-    "LMK-Eyelid_upp1.L":        (384, None,    "LMK-Root", (0.039, -0.051, 0.382),  1.0, None, MotionMode.LANDMARK),
-    "LMK-Eyelid_upp2.L":        (386, None,    "LMK-Root", (0.052, -0.054, 0.384),  1.0, None, MotionMode.LANDMARK),
-    "LMK-Eyelid_upp3.L":        (388, None,    "LMK-Root", (0.067, -0.047, 0.382),  1.0, None, MotionMode.LANDMARK),
-    "LMK-Eyelid_corner_out.L":  (263, None,    "LMK-Root", (0.073, -0.035, 0.378),  1.0, None, MotionMode.LANDMARK),
-    "LMK-Eyelid_low1.L":        (381, None,    "LMK-Root", (0.040, -0.049, 0.372),  1.0, None, MotionMode.LANDMARK),
-    "LMK-Eyelid_low2.L":        (374, None,    "LMK-Root", (0.053, -0.050, 0.370),  1.0, None, MotionMode.LANDMARK),
-    "LMK-Eyelid_low3.L":        (390, None,    "LMK-Root", (0.066, -0.040, 0.374),  1.0, None, MotionMode.LANDMARK),
+    "LMK-Eyelid_corner_in.L":   LandmarkBoneMap(bone="LMK-Eyelid_corner_in.L",   id_landmark=398, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.025, -0.048, 0.372), motion_mode=MotionMode.LANDMARK),
+    "LMK-Eyelid_upp1.L":        LandmarkBoneMap(bone="LMK-Eyelid_upp1.L",        id_landmark=384, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.039, -0.051, 0.382), motion_mode=MotionMode.LANDMARK),
+    "LMK-Eyelid_upp2.L":        LandmarkBoneMap(bone="LMK-Eyelid_upp2.L",        id_landmark=386, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.052, -0.054, 0.384), motion_mode=MotionMode.LANDMARK),
+    "LMK-Eyelid_upp3.L":        LandmarkBoneMap(bone="LMK-Eyelid_upp3.L",        id_landmark=388, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.067, -0.047, 0.382), motion_mode=MotionMode.LANDMARK),
+    "LMK-Eyelid_corner_out.L":  LandmarkBoneMap(bone="LMK-Eyelid_corner_out.L",  id_landmark=263, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.073, -0.035, 0.378), motion_mode=MotionMode.LANDMARK),
+    "LMK-Eyelid_low1.L":        LandmarkBoneMap(bone="LMK-Eyelid_low1.L",        id_landmark=381, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.040, -0.049, 0.372), motion_mode=MotionMode.LANDMARK),
+    "LMK-Eyelid_low2.L":        LandmarkBoneMap(bone="LMK-Eyelid_low2.L",        id_landmark=374, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.053, -0.050, 0.370), motion_mode=MotionMode.LANDMARK),
+    "LMK-Eyelid_low3.L":        LandmarkBoneMap(bone="LMK-Eyelid_low3.L",        id_landmark=390, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.066, -0.040, 0.374), motion_mode=MotionMode.LANDMARK),
 
-    "LMK-Eyelid_corner_in.R":   (133, None,    "LMK-Root", (-0.025, -0.048, 0.372),  1.0, None, MotionMode.LANDMARK),
-    "LMK-Eyelid_upp1.R":        (157, None,    "LMK-Root", (-0.039, -0.051, 0.382),  1.0, None, MotionMode.LANDMARK),
-    "LMK-Eyelid_upp2.R":        (159, None,    "LMK-Root", (-0.052, -0.054, 0.384),  1.0, None, MotionMode.LANDMARK),
-    "LMK-Eyelid_upp3.R":        (161, None,    "LMK-Root", (-0.067, -0.047, 0.382),  1.0, None, MotionMode.LANDMARK),
-    "LMK-Eyelid_corner_out.R":  (33,  None,    "LMK-Root", (-0.073, -0.035, 0.378),  1.0, None, MotionMode.LANDMARK),
-    "LMK-Eyelid_low1.R":        (154, None,    "LMK-Root", (-0.040, -0.049, 0.372),  1.0, None, MotionMode.LANDMARK),
-    "LMK-Eyelid_low2.R":        (145, None,    "LMK-Root", (-0.053, -0.050, 0.370),  1.0, None, MotionMode.LANDMARK),
-    "LMK-Eyelid_low3.R":        (163, None,    "LMK-Root", (-0.066, -0.040, 0.374),  1.0, None, MotionMode.LANDMARK),
+    "LMK-Eyelid_corner_in.R":   LandmarkBoneMap(bone="LMK-Eyelid_corner_in.R",   id_landmark=133, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.025, -0.048, 0.372), motion_mode=MotionMode.LANDMARK),
+    "LMK-Eyelid_upp1.R":        LandmarkBoneMap(bone="LMK-Eyelid_upp1.R",        id_landmark=157, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.039, -0.051, 0.382), motion_mode=MotionMode.LANDMARK),
+    "LMK-Eyelid_upp2.R":        LandmarkBoneMap(bone="LMK-Eyelid_upp2.R",        id_landmark=159, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.052, -0.054, 0.384), motion_mode=MotionMode.LANDMARK),
+    "LMK-Eyelid_upp3.R":        LandmarkBoneMap(bone="LMK-Eyelid_upp3.R",        id_landmark=161, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.067, -0.047, 0.382), motion_mode=MotionMode.LANDMARK),
+    "LMK-Eyelid_corner_out.R":  LandmarkBoneMap(bone="LMK-Eyelid_corner_out.R",  id_landmark=33,  parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.073, -0.035, 0.378), motion_mode=MotionMode.LANDMARK),
+    "LMK-Eyelid_low1.R":        LandmarkBoneMap(bone="LMK-Eyelid_low1.R",        id_landmark=154, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.040, -0.049, 0.372), motion_mode=MotionMode.LANDMARK),
+    "LMK-Eyelid_low2.R":        LandmarkBoneMap(bone="LMK-Eyelid_low2.R",        id_landmark=145, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.053, -0.050, 0.370), motion_mode=MotionMode.LANDMARK),
+    "LMK-Eyelid_low3.R":        LandmarkBoneMap(bone="LMK-Eyelid_low3.R",        id_landmark=163, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.066, -0.040, 0.374), motion_mode=MotionMode.LANDMARK),
     
     ##################################################################
     #                              BROW                              #
     ##################################################################
-    "LMK-Brow1.L":         (336, None,    "LMK-Root", (0.039, -0.078, 0.418),   1.0, None, MotionMode.LANDMARK),
-    "LMK-Brow2.L":         (334, None,    "LMK-Root", (0.077, -0.056, 0.420),   1.0, None, MotionMode.LANDMARK),
-    "LMK-Brow3.L":         (300, None,    "LMK-Root", (0.098, -0.018, 0.408),   1.0, None, MotionMode.LANDMARK),
-    "LMK-Brow1.R":         (107, None,    "LMK-Root", (-0.039, -0.078, 0.418),  1.0, None, MotionMode.LANDMARK),
-    "LMK-Brow2.R":         (105, None,    "LMK-Root", (-0.077, -0.056, 0.420),  1.0, None, MotionMode.LANDMARK),
-    "LMK-Brow3.R":         (70,  None,    "LMK-Root", (-0.098, -0.018, 0.408),  1.0, None, MotionMode.LANDMARK),
+    "LMK-Brow1.L":         LandmarkBoneMap(bone="LMK-Brow1.L",   id_landmark=336, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.039, -0.078, 0.418),   motion_mode=MotionMode.LANDMARK),
+    "LMK-Brow2.L":         LandmarkBoneMap(bone="LMK-Brow2.L",   id_landmark=334, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.077, -0.056, 0.420),   motion_mode=MotionMode.LANDMARK),
+    "LMK-Brow3.L":         LandmarkBoneMap(bone="LMK-Brow3.L",   id_landmark=300, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.098, -0.018, 0.408),   motion_mode=MotionMode.LANDMARK),
+    "LMK-Brow1.R":         LandmarkBoneMap(bone="LMK-Brow1.R",   id_landmark=107, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.039, -0.078, 0.418),  motion_mode=MotionMode.LANDMARK),
+    "LMK-Brow2.R":         LandmarkBoneMap(bone="LMK-Brow2.R",   id_landmark=105, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.077, -0.056, 0.420),  motion_mode=MotionMode.LANDMARK),
+    "LMK-Brow3.R":         LandmarkBoneMap(bone="LMK-Brow3.R",   id_landmark=70,  parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.098, -0.018, 0.408),  motion_mode=MotionMode.LANDMARK),
     
     ##################################################################
     #                            FACE OVAL                           #
     ##################################################################
-    "LMK-Face_oval1.L":         (338, None,    "LMK-Root", (0.038, -0.063, 0.472),      1.0, None, MotionMode.LANDMARK),
-    "LMK-Face_oval2.L":         (332, None,    "LMK-Root", (0.082, -0.035, 0.461),      1.0, None, MotionMode.LANDMARK),
-    "LMK-Face_oval3.L":         (454, None,    "LMK-Root", (0.11, 0.054, 0.36),         1.0, None, MotionMode.LANDMARK),
-    "LMK-Face_oval4.L":         (361, None,    "LMK-Root", (0.106, 0.061, 0.316),       1.0, None, MotionMode.LANDMARK),
-    "LMK-Face_oval5.L":         (379, None,    "LMK-Root", (0.057, -0.016, 0.233),      1.0, None, MotionMode.LANDMARK),
+    "LMK-Face_oval1.L":         LandmarkBoneMap(bone="LMK-Face_oval1.L", id_landmark=338, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.038, -0.063, 0.472),      motion_mode=MotionMode.LANDMARK),
+    "LMK-Face_oval2.L":         LandmarkBoneMap(bone="LMK-Face_oval2.L", id_landmark=332, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.082, -0.035, 0.461),      motion_mode=MotionMode.LANDMARK),
+    "LMK-Face_oval3.L":         LandmarkBoneMap(bone="LMK-Face_oval3.L", id_landmark=454, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.11, 0.054, 0.36),         motion_mode=MotionMode.LANDMARK),
+    "LMK-Face_oval4.L":         LandmarkBoneMap(bone="LMK-Face_oval4.L", id_landmark=361, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.106, 0.061, 0.316),       motion_mode=MotionMode.LANDMARK),
+    "LMK-Face_oval5.L":         LandmarkBoneMap(bone="LMK-Face_oval5.L", id_landmark=379, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.057, -0.016, 0.233),      motion_mode=MotionMode.LANDMARK),
     
-    "LMK-Face_oval_chin":       (152, None,    "LMK-Root", (0.0, -0.056, 0.206),   1.0, None, MotionMode.LANDMARK),
+    "LMK-Face_oval_chin":       LandmarkBoneMap(bone="LMK-Face_oval_chin", id_landmark=152, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.0, -0.056, 0.206), motion_mode=MotionMode.LANDMARK),
     
-    "LMK-Face_oval1.R":         (109, None,    "LMK-Root", (-0.038, -0.063, 0.472),     1.0, None, MotionMode.LANDMARK),
-    "LMK-Face_oval2.R":         (103, None,    "LMK-Root", (-0.082, -0.035, 0.461),     1.0, None, MotionMode.LANDMARK),
-    "LMK-Face_oval3.R":         (234, None,    "LMK-Root", (-0.11, 0.054, 0.36),        1.0, None, MotionMode.LANDMARK),
-    "LMK-Face_oval4.R":         (132, None,    "LMK-Root", (-0.106, 0.061, 0.316),      1.0, None, MotionMode.LANDMARK),
-    "LMK-Face_oval5.R":         (150, None,    "LMK-Root", (-0.057, -0.016, 0.233),     1.0, None, MotionMode.LANDMARK),
+    "LMK-Face_oval1.R":         LandmarkBoneMap(bone="LMK-Face_oval1.R", id_landmark=109, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.038, -0.063, 0.472),     motion_mode=MotionMode.LANDMARK),
+    "LMK-Face_oval2.R":         LandmarkBoneMap(bone="LMK-Face_oval2.R", id_landmark=103, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.082, -0.035, 0.461),     motion_mode=MotionMode.LANDMARK),
+    "LMK-Face_oval3.R":         LandmarkBoneMap(bone="LMK-Face_oval3.R", id_landmark=234, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.11, 0.054, 0.36),        motion_mode=MotionMode.LANDMARK),
+    "LMK-Face_oval4.R":         LandmarkBoneMap(bone="LMK-Face_oval4.R", id_landmark=132, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.106, 0.061, 0.316),      motion_mode=MotionMode.LANDMARK),
+    "LMK-Face_oval5.R":         LandmarkBoneMap(bone="LMK-Face_oval5.R", id_landmark=150, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.057, -0.016, 0.233),     motion_mode=MotionMode.LANDMARK),
     ##################################################################
     #                            NOSE                                #
     ##################################################################
-    "LMK-Nose_tip":          (4,    None,    "LMK-Root", (0.0, -0.112, 0.314),      1.0, None, MotionMode.LANDMARK),
-    "LMK-Nose_base":         (168,  None,    "LMK-Root", (0.0, -0.083, 0.381),      1.0, None, MotionMode.LANDMARK),
-    "LMK-Nostril.L":         (358,  None,    "LMK-Root", (0.031, -0.069, 0.311),    1.0, None, MotionMode.LANDMARK),
-    "LMK-Nostril.R":         (129,  None,    "LMK-Root", (-0.031, -0.069, 0.311),   1.0, None, MotionMode.LANDMARK),
+    "LMK-Nose_tip":          LandmarkBoneMap(bone="LMK-Nose_tip",    id_landmark=4,    parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.0, -0.112, 0.314),      motion_mode=MotionMode.LANDMARK),
+    "LMK-Nose_base":         LandmarkBoneMap(bone="LMK-Nose_base",   id_landmark=168,  parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.0, -0.083, 0.381),      motion_mode=MotionMode.LANDMARK),
+    "LMK-Nostril.L":         LandmarkBoneMap(bone="LMK-Nostril.L",   id_landmark=358,  parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.031, -0.069, 0.311),    motion_mode=MotionMode.LANDMARK),
+    "LMK-Nostril.R":         LandmarkBoneMap(bone="LMK-Nostril.R",   id_landmark=129,  parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.031, -0.069, 0.311),   motion_mode=MotionMode.LANDMARK),
 
     ##################################################################
     #                            CHEEK                               #
     ##################################################################
-    "LMK-Cheek_upp.L":          (280, None,    "LMK-Root", (0.078, -0.043, 0.339),   1.0, None, MotionMode.LANDMARK),
-    "LMK-Cheek_low.L":          (426, None,    "LMK-Root", (0.054, -0.056, 0.290),   1.0, None, MotionMode.LANDMARK),
-    "LMK-Cheek_in.L":           (266, None,    "LMK-Root", (0.044, -0.062, 0.329),   1.0, None, MotionMode.LANDMARK),
-    "LMK-Cheek_out.L":          (416, None,    "LMK-Root", (0.079, -0.021, 0.284),   1.0, None, MotionMode.LANDMARK),
+    "LMK-Cheek_upp.L":          LandmarkBoneMap(bone="LMK-Cheek_upp.L", id_landmark=280, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.078, -0.043, 0.339),   motion_mode=MotionMode.LANDMARK),
+    "LMK-Cheek_low.L":          LandmarkBoneMap(bone="LMK-Cheek_low.L", id_landmark=426, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.054, -0.056, 0.290),   motion_mode=MotionMode.LANDMARK),
+    "LMK-Cheek_in.L":           LandmarkBoneMap(bone="LMK-Cheek_in.L",  id_landmark=266, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.044, -0.062, 0.329),   motion_mode=MotionMode.LANDMARK),
+    "LMK-Cheek_out.L":          LandmarkBoneMap(bone="LMK-Cheek_out.L", id_landmark=416, parent_landmark=None,    parent_bone="LMK-Root", rest_position=(0.079, -0.021, 0.284),   motion_mode=MotionMode.LANDMARK),
 
-    "LMK-Cheek_upp.R":          (50,    None,    "LMK-Root", (-0.078, -0.043, 0.339),   1.0, None, MotionMode.LANDMARK),
-    "LMK-Cheek_low.R":          (206,   None,    "LMK-Root", (-0.054, -0.056, 0.290),   1.0, None, MotionMode.LANDMARK),
-    "LMK-Cheek_in.R":           (36,    None,    "LMK-Root", (-0.044, -0.062, 0.329),   1.0, None, MotionMode.LANDMARK),
-    "LMK-Cheek_out.R":          (192,   None,    "LMK-Root", (-0.079, -0.021, 0.284),   1.0, None, MotionMode.LANDMARK),
+    "LMK-Cheek_upp.R":          LandmarkBoneMap(bone="LMK-Cheek_upp.R", id_landmark=50,    parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.078, -0.043, 0.339), motion_mode=MotionMode.LANDMARK),
+    "LMK-Cheek_low.R":          LandmarkBoneMap(bone="LMK-Cheek_low.R", id_landmark=206,   parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.054, -0.056, 0.290), motion_mode=MotionMode.LANDMARK),
+    "LMK-Cheek_in.R":           LandmarkBoneMap(bone="LMK-Cheek_in.R",  id_landmark=36,    parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.044, -0.062, 0.329), motion_mode=MotionMode.LANDMARK),
+    "LMK-Cheek_out.R":          LandmarkBoneMap(bone="LMK-Cheek_out.R", id_landmark=192,   parent_landmark=None,    parent_bone="LMK-Root", rest_position=(-0.079, -0.021, 0.284), motion_mode=MotionMode.LANDMARK),
 
 }
 

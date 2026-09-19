@@ -5,7 +5,7 @@ from mathutils import Quaternion, Vector
 
 from ..core import solver
 from ..core import config
-from ..core.config import MotionMode, LandmarkSample, FACE_MAPPING, LANDMARKERS_FACE_MAPPING, LM_FOREHEAD, LM_NASION, LM_SIDE_L, LM_SIDE_R
+from ..core.config import MotionMode, LandmarkSample, LANDMARKS_MAP, FACE_MAPPING, LANDMARKERS_FACE_MAPPING, LM_FOREHEAD, LM_NASION, LM_SIDE_L, LM_SIDE_R
 from ..core.rig import find_rig, LANDMARKS_RIG_NAME
 from ..core.webcam_core import FaceTracker
 from .diagnostics import stampa_tabella_scale
@@ -124,6 +124,60 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
     _area = None
     _rig = None
     _track_idx = TRACKED_INDICES
+    _landmark_maps = LANDMARKS_MAP
+
+    #added
+    def configure(self, source_rig, target_rig, mappings):
+        self.source_rig = source_rig
+        self.target_rig = target_rig
+        self.mappings = mappings
+
+    #added
+    def solve_source(self, landmarks, context: bpy.types.Context):
+        settings = (context.scene.facemocap)
+        frame = solver.build_head_frame(landmarks, aspect=settings.aspect_ratio)
+
+        if frame is None:
+            return None
+
+        indices = {
+            data.id_landmark
+            for data in config.LANDMARKS_MAP.values()
+        }
+
+        local_by_index = (solver.to_head_local(landmarks, frame, indices, settings.aspect_ratio))
+
+        local = {}
+
+        for bone_name, data in config.LANDMARKS_MAP.items():
+            ladnmarks_index = data.id_landmark
+            local[bone_name] = (local_by_index[ladnmarks_index])
+
+        return solver.SourcePose(
+            local=local,
+            origin=frame.origin,
+            scale=frame.scale,
+            head_rotation=frame.rotation
+        )
+
+    def update(self, context):
+        landmarks = (self.latest_landmarks)
+
+        if landmarks is None:
+            return
+
+        source_pose = (self.solve_source(landmarks, context))
+
+        if source_pose is None:
+            return
+
+        if self.retarget.neutra_head_rotation is None:
+            return
+        
+        settings = (context.scene.facemocap)
+        target_pose = (self.retarget.solve(source_pose, self.mappings, settings.smoothing, settings.mirror_x))
+
+        self.apply_target(target_pose)
 
     def _begin_calibration(self, context: bpy.types.Context) -> None:
         """Azzera la posa e riparte a raccogliere la posa neutra."""
@@ -202,65 +256,48 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
 
         return True
 
+    def _solve_landmark_pose(self, local, scale, settings):
+        result = {}
 
-    def _apply_pose(self, context: bpy.types.Context, local, origin, rot, scale):
-        settings = context.scene.facemocap
-        alpha = 1.0 - config.SMOOTHING
+        for mapping in self._landmark_maps.values():
+            pose_bone = self._rig.pose.bones.get(mapping.bone)
 
-        # Delta rispetto alla posa neutra, ancora in sist. di rif. testa-locale.
-        deltas = {
-            idx: vec - self._neutral[idx]
-            for idx, vec in local.items()
-            if idx in self._neutral
-        }
-
-        for voce in FACEMOCAP_OT_start_capture.PIANO_OSSA:
-            pose_bone = self._rig.pose.bones.get(voce.osso)
-            
-            if not pose_bone:
+            if pose_bone is None:
                 continue
 
-            if settings.mirror_x:
-                lm_idx, parent_idx = voce.landmark_speculare, voce.genitore_speculare
-            else:
-                lm_idx, parent_idx = voce.landmark, voce.genitore
+            delta = self._landmark_delta(mapping.landmark, local)
 
-            if parent_idx is None and voce.motion_mode == MotionMode.HEAD:
-                target = self._solve_head_translation(settings, origin, scale) * voce.gain
-            else:
-                if parent_idx is not None and voce.motion_mode == MotionMode.RELATIVE: 
-                    if lm_idx not in deltas or parent_idx not in deltas:
-                        continue
-                    relative = deltas[lm_idx] - deltas[parent_idx]
-                    scale_b = self._bone_scales.get(voce.osso, self._unit_scale)
-                    target = solver.head_local_to_blender(relative, settings.mirror_x) * (
-                        scale_b * config.AMPLITUDE * voce.gain
-                    )
-                elif voce.motion_mode == MotionMode.LANDMARK:
-                    if lm_idx not in deltas:
-                        continue
-                    scale_b = self._bone_scales.get(
-                        voce.osso,
-                        self._unit_scale
-                    )
-                    target = solver.head_local_to_blender(
-                        deltas[lm_idx],
-                        settings.mirror_x
-                    ) * (scale_b * config.AMPLITUDE * voce.gain)
+            if delta is None:
+                continue
+
+            result[mapping.bone] = LandmarkPose(location=solver.head_local_to_blender(delta, settings.mirror_x), rotation=None)
+
+        return result
+
+    def _retarget_pose(self, source_pose, settings):
+        result = {}
+
+        for mapping in self._retarget_maps:
+            if mapping.mode == MotionMode.TRANSLATION:
+                result[mapping.target] = self._retarget_translation(mapping, source_pose)
+            elif mapping.mode == MotionMode.ROTATION:
+                result[mapping.target] = self._retarget_rotation(mapping, source_pose)
+            elif mapping.mode == MotionMode.AIM:
+                result[mapping.target] = self._retarget_aim(mapping, source_pose)
+
+        return result
 
 
-                if voce.rotazione:
-                    if self._apply_lever_rotation(pose_bone, voce.osso, target, alpha):
-                        continue
-                    self._warn_bad_lever(voce.osso)
+    #modified
+    def _apply_pose(self, context: bpy.types.Context, local, origin, rot, scale):
+        settings = context.scene.facemocap
 
-            previous = self._smoothed.get(voce.osso)
-            smoothed = target if previous is None else previous.lerp(target, alpha)
-            self._smoothed[voce.osso] = smoothed
-
-            pose_bone.location = solver.to_bone_space(pose_bone, smoothed)
-
-        self._apply_head_rotation(context, rot, alpha)
+        #solve source landmark skeleton
+        source_pose = self._solve_landmark_pose(local=local, scale=scale, settings=settings)
+        #retarget
+        target_pose = self._retarget_pose(source_pose=source_pose, settings=settings)
+        #apply target pose
+        self._apply_target_pose(target_pose, alpha=1.0 - config.SMOOTHING)
 
     def _warn_bad_lever(self, bone_name):
         """Avvisa una sola volta che l'osso non e' orientato come una leva.
@@ -307,6 +344,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         if settings.mirror_x:
             vec.x = -vec.x
         return vec * (self._unit_scale * config.HEAD_GAIN)
+
 
     def _apply_head_rotation(self, context, rot, alpha):
         pose_bone = self._rig.pose.bones.get("Head")
@@ -448,26 +486,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         self.report({'INFO'}, "Motion Capture stopped.")
 
 #added: calculate position and place in the blender space the marker bone associated to the landmark 
-def solve_landmark_bone(self, pose_bone, landmark_delta, scale):
+def _solve_landmark_bone(self, pose_bone, landmark_delta, scale):
     target = solver.head_local_to_blender(landmark_delta, self._settigns.mirror_x)
     target *= scale * config.AMPLITUDE
     pose_bone.location = solver.to_bone_space(pose_bone, target)
-
-#added: compute a frame (orthonormal base for a given point)
-def make_frame(a, b, up):
-    x = (b - a).normalized()
-    z = x.cross(up)
-
-    if z.length < 1e-6:
-        return None
-
-    z.normalize()
-
-    y = z.cross(x)
-    y.normalize()
-
-    return Matrix((x, y, z)).transposed()
-
-#delta rotation is obtained as delta_rot = (current_frame @ neutral_frame.transposed()) 
-#where the transposed is the negative rotation captured at neutral pose, so compute the
-#current frame rotation is possible with a matrix product compute the rotation variation
