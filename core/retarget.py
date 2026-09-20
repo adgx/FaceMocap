@@ -1,4 +1,4 @@
-import solver
+from . import solver
 
 from dataclasses import dataclass
 

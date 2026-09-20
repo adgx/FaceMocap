@@ -2,11 +2,11 @@ import bpy
 
 from mathutils import Vector, Matrix
 
-from .config import FACE_MAPPING, ROTATION_BONES, LANDMARKERS_FACE_MAPPING
-from .solver import traslation_to_bone_space
 RIG_NAME = "FaceMocap_Rig"
 ADVANCED_RIG_NAME = "RIG-FaceMocap_advanced_face"
 LANDMARKS_RIG_NAME = "RIG-FaceMocap_Landmarkers"
+from .config import FACE_MAPPING, ROTATION_BONES, LANDMARKERS_FACE_MAPPING
+from .solver import traslation_to_bone_space
 
 #it could make sense to use a distintion between the sorce, and target rig   
 def find_rig(context=None):

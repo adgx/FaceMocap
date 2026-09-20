@@ -225,7 +225,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
 
             if mode == "TRANSLATION":
                 rig.apply_rotation(pose_bone, value)
-            elif mode = "ROTATION":
+            elif mode == "ROTATION":
                 rig.apply_rotation(pose_bone, value.to_matrix())
 
     #added
@@ -523,7 +523,9 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             self.report({'ERROR'}, "FaceMocap rig not found. Generate it before starting.")
             return {'CANCELLED'}
 
-        properties.ensure_mapping(settings)
+        if properties.mapping_is_empty(settings):
+            properties.populate_default_mapping(settings)
+            
         mappings = []
 
         for item in settings.mappings:

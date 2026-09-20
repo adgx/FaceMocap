@@ -21,8 +21,6 @@ class FACEMOCAP_UL_mapping(UIList):
         row.prop(item, "mode", text="")
         row.prop(item, "gain", text="")
 
-
-        return super().draw_item(context, layout, data, item, icon, active_data, active_property, index, flt_flag)
 class FACEMOCAP_PT_main_panel(Panel):
     """Crea un Pannello nella barra laterale (N) della Vista 3D
        Pannel on View 3D
@@ -36,7 +34,6 @@ class FACEMOCAP_PT_main_panel(Panel):
     def draw(self, context):
         layout = self.layout
         settings = (context.scene.facemocap)
-        properties.ensure_mapping(settings)
 
         # Importazione Modello
         box_model = layout.box()
@@ -63,7 +60,7 @@ class FACEMOCAP_PT_main_panel(Panel):
         row.operator("facemocap.initialize", icon="FILE_REFRESH")
         row.operator("facemocap.validate", icon="CHECKMARK")
         # Generatore source rig
-                box_advance_setup.operator("facemocap.create_advance_armature", text="Generate Advance Armature", icon='BONE_DATA')
+        box_advance_setup.operator("facemocap.create_advance_armature", text="Generate Advance Armature", icon='BONE_DATA')
         #Mapping
         box_mapping = layout.box()
         box_mapping.label(text="4. Target Mapping")
