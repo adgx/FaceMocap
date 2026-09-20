@@ -1,6 +1,29 @@
+from typing import Any
+
 import bpy
 
-class FACEMOCAP_PT_main_panel(bpy.types.Panel):
+from bpy.types import(
+    Context,
+    Panel,
+    UILayout,
+    UIList
+)
+from ..core import properties 
+
+class FACEMOCAP_UL_mapping(UIList):
+    bl_idname = "FACEMOCAP_UL_mapping"
+
+    def draw_item(self, context: Context | None, layout: UILayout, data: None | Any, item: None | Any, icon: int | None, active_data: Any, active_property: str | None, index: int | None, flt_flag: int | None) -> None:
+        row = layout.row(align=True)
+        row.prop(item, "enabled", text="")
+        row.label(text=item.role)
+        row.prop(item, "target_bone", text="")
+        row.prop(item, "mode", text="")
+        row.prop(item, "gain", text="")
+
+
+        return super().draw_item(context, layout, data, item, icon, active_data, active_property, index, flt_flag)
+class FACEMOCAP_PT_main_panel(Panel):
     """Crea un Pannello nella barra laterale (N) della Vista 3D
        Pannel on View 3D
     """
@@ -12,6 +35,8 @@ class FACEMOCAP_PT_main_panel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
+        settings = (context.scene.facemocap)
+        properties.ensure_mapping(settings)
 
         # Importazione Modello
         box_model = layout.box()
@@ -24,20 +49,50 @@ class FACEMOCAP_PT_main_panel(bpy.types.Panel):
 
         # Generatore Armatura Standard
         box_setup.operator("facemocap.create_armature", text="Generate Base Armature", icon='BONE_DATA')
-        # Generatore Armatura Advance
-        box_setup.operator("facemocap.create_advance_armature", text="Generate Advance Armature", icon='BONE_DATA')
-
         # Generatore Armatura adattata al modello
         box_setup.operator("facemocap.create_adaptive_armature", text="Generate Armature Base On Mesh", icon='ARMATURE_DATA')
-
         # Operatore manuale per collegare i pesi
         box_setup.operator("facemocap.bind_model", text="Link Manually", icon='LINKED')
 
+        # Setup source rig and target rig
+        box_advance_setup = layout.box()
+        box_advance_setup.label(text="3. Advance Setup", icon="OUTLINER_OB_ARMATURE")
+        box_advance_setup.prop(settings, "source_rig_name", text="Source")
+        box_advance_setup.prop(settings, "target_rig_name", text="Target")
+        row = box_advance_setup.row(align=True)
+        row.operator("facemocap.initialize", icon="FILE_REFRESH")
+        row.operator("facemocap.validate", icon="CHECKMARK")
+        # Generatore source rig
+                box_advance_setup.operator("facemocap.create_advance_armature", text="Generate Advance Armature", icon='BONE_DATA')
+        #Mapping
+        box_mapping = layout.box()
+        box_mapping.label(text="4. Target Mapping")
+        box_mapping.template_list("FACEMOCAP_UL_mapping", 
+                                  "",
+                                  settings,
+                                  "mappings",
+                                  settings,
+                                  "mapping_index",
+                                  rows=0)
+        index = (settings.mapping_index)
+
+        if 0 <= index < len(settings.mappings):
+            item = (settings.mappings[index])
+            detail = box_mapping.box()
+            detail.label(text="Mapping")
+            detail.prop(item, "role")
+            detail.prop(item, "source_bones")
+            detail.prop(item, "mode")
+            detail.prop(item, "gain")
+            detail.prop(item, "enabled")
+        
         # Motion Capture
         box_mocap = layout.box()
-        box_mocap.label(text="3. Animazione", icon='ANIM')
-        settings = context.scene.facemocap
+        box_mocap.label(text="5. Campture", icon='ANIM')
+        box_mocap.prop(settings, "camera_id")
         box_mocap.prop(settings, "mirror_x")
+        box_mocap.prop(settings, "smoothing")
+
         box_mocap.operator("facemocap.start_capture", text="Start Motion Capture", icon='PLAY')
         box_mocap.operator("facemocap.reset_pose", text="Reset Pose", icon='LOOP_BACK')
         box_mocap.label(text="ESC = stop | C = recalibration")

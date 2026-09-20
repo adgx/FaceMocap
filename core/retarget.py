@@ -4,102 +4,6 @@ from dataclasses import dataclass
 
 from .config import MotionMode
 
-#added: data structure that allows us to create a mapping between the source skeleton 
-# and the target skeleton
-@dataclass(frozen=True)
-class RetargetMap:
-    source: tuple[str, ...]
-    target: str
-    translation: bool = False
-    rotation: bool = False
-    gain: float = 1.0
-    axis_mask: tuple[bool, bool, bool] = (True, True, True)
-
-#mapping between landmarks and target bones 
-DEFAULT_RETARGET_MAP = {
-    #to see the source LMK
-    "Neck": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                target="DEF-Neck2",
-                rotation=True),
-    "Head": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                    target="DEF-Head",
-                    rotation=True),
-    "Jaw": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                    target="DEF-Jaw",
-                    rotation=True),
-    #Nostril
-    "Nose_nostril_L": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                    target="DEF-Nostril.L",
-                    translation=True),
-    "Nose_nostril_R": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                        target="DEF-Nostril.R",
-                        translation=True),
-    #Lips, to see the source LMK
-    "Lip_main_upp": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                    target="CLT-Lip_main_upp",
-                    translation=True),
-    "Lip_local_upp_L": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                    target="CLT-Lip_local_upp.L",
-                    translation=True),
-    "Lip_local_upp_R": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                    target="CLT-Lip_local_upp.R",
-                    translation=True),
-    "Lip_main_low": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                        target="CLT-Lip_main_low",
-                        translation=True),
-    "Lip_local_low_L": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                        target="CLT-Lip_local_low.L",
-                        translation=True),
-    "Lip_local_low_R": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                        target="CLT-Lip_local_low.R",
-                        translation=True),
-    "Lip_corn_L": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                            target="CLT-Lip_corn.L",
-                            translation=True),
-    "Lip_corn_R": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                                target="CLT-Lip_corn.R",
-                                translation=True),
-    #Brow, to see the source LMK
-    "Brow_in_L": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                                target="CLT-Brow_in.L",
-                                translation=True),
-    "Brow_mid_L": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                                target="CLT-Brow_mid.L",
-                                translation=True),
-    "Brow_out_L": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                                target="CLT-Brow_out.L",
-                                translation=True),
-    "Brow_in_R": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                                    target="CLT-Brow_in.R",
-                                    translation=True),
-    "Brow_mid_R": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                                    target="CLT-Brow_mid.R",
-                                    translation=True),
-    "Brow_out_R": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                                    target="CLT-Brow_out.R",
-                                    translation=True),
-    #Eye, to see the source LMK
-    "Eye_L": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                                    target="TGT-Eye.L",
-                                    translation=True),
-    "Eye_R": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                                    target="TGT-Eye.R",
-                                    translation=True),
-    #Eyelid, to see the source LMK
-    "Eyelid_upp_L": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                                        target="P-Eyelid_upp.L",
-                                        translation=True),
-    "Eyelid_upp_R": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                                        target="P-Eyelid_upp.R",
-                                        translation=True),
-    "Eyelid_low_L": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                                            target="P-Eyelid_low.L",
-                                            translation=True),
-    "Eyelid_low_R": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
-                                            target="P-Eyelid_low.R",
-                                            translation=True),
-}
-
 class RetargetSolver:
     def __init__(self) -> None:
         self.neutral = {}
@@ -112,6 +16,7 @@ class RetargetSolver:
         self.previous.clear()
         self.neutral_head_rotation = None
         self.neutral_head_scale = 1.0
+        
 
     def calibrate(self, source_pose):
         self.neutral = {name: value.copy() for name, value in source_pose.local.items()}

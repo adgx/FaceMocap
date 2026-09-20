@@ -1,13 +1,15 @@
-from typing import NamedTuple
+from typing import Literal, NamedTuple
 
 import bpy
+from bpy.types import Context
 from mathutils import Quaternion, Vector
 
 from ..core import solver
+from ..core import properties
 from ..core import config
 from ..core import rig
 from ..core.retarget import RetargetSolver
-from ..core.config import MotionMode, LandmarkSample, LANDMARKS_MAP, FACE_MAPPING, LANDMARKERS_FACE_MAPPING, LM_FOREHEAD, LM_NASION, LM_SIDE_L, LM_SIDE_R
+from ..core.config import MappingRuntime, MotionMode, LandmarkSample, LANDMARKS_MAP, FACE_MAPPING, LANDMARKERS_FACE_MAPPING, LM_FOREHEAD, LM_NASION, LM_SIDE_L, LM_SIDE_R
 from ..core.rig import find_rig, LANDMARKS_RIG_NAME
 from ..core.webcam_core import FaceTracker
 from .diagnostics import stampa_tabella_scale
@@ -94,7 +96,18 @@ def reset_rig_pose(rig):
 ####################################################
 #               Operators Classes                  #
 ####################################################
+#added
+class FACEMOCAP_OT_initialize(bpy.types.Operator):
+    bl_idname = "facemocap.initialize"
+    bl_label = "Load Default Mapping"
 
+    def execute(self, context: Context) -> set[Literal['RUNNING_MODAL'] | Literal['CANCELLED'] | Literal['FINISHED'] | Literal['PASS_THROUGH'] | Literal['INTERFACE']]:
+        properties.populate_default_mapping(context.scene.facemocap)
+        self.report({"INFO"}, "Default mapping loaded")
+
+        return {"FINISHED"}
+
+#To-do: review
 class FACEMOCAP_OT_reset_pose(bpy.types.Operator):
     """Riporta l'armatura alla rest pose
        Reset pose to the default
@@ -104,14 +117,42 @@ class FACEMOCAP_OT_reset_pose(bpy.types.Operator):
     bl_description = "Reset the pose to the default"
     bl_options = {'REGISTER', 'UNDO'}
 
-    def execute(self, context: bpy.types.Context) -> set[str]:
+    def execute(self, context: bpy.types.Context) -> set[Literal['RUNNING_MODAL'] | Literal['CANCELLED'] | Literal['FINISHED'] | Literal['PASS_THROUGH'] | Literal['INTERFACE']]:
         rig = find_rig(context)
         if not rig:
             self.report({'ERROR'}, "Armatura FaceMocap not found.")
             return {'CANCELLED'}
         reset_rig_pose(rig)
         return {'FINISHED'}
+#added
+class FACEMOCAP_OT_validate(bpy.types.Operator):
+    bl_idname = "facemocap.validate"
+    bl_label = "validate Mapping"
 
+    def execute(self, context) -> set[Literal['RUNNING_MODAL'] | Literal['CANCELLED'] | Literal['FINISHED'] | Literal['PASS_THROUGH'] | Literal['INTERFACE']]:
+        settings = (context.scene.facemocap)
+        target = rig.find_rig(context, settings.target_rig_name, target)
+
+        if target is None:
+            self.report({"ERROR"}, "Target rig not found")
+            return {"CANCELLED"}
+
+        missing = []
+
+        for item in settings.mappings:
+            if not item.enabled:
+                continue
+            if not item.target_bone:
+                continue
+            if(target.pose.bones.get(item.target_bone) is None):
+                missing.append(item.target_bone)
+
+        if missing:
+            self.report({"WARNING"}, "Missing bones: " + ",".join(missing))
+        else:
+            self.report({"INFO"}, "Target mapping is valid")
+
+        return {"FINISHED"}
 
 class FACEMOCAP_OT_start_capture(bpy.types.Operator):
     """Avvia la motion capture facciale. ESC per fermare, C per ricalibrare
@@ -120,6 +161,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
     bl_idname = "facemocap.start_capture"
     bl_label = "Start Motion Capture"
     bl_description = "Creation of the armatrue for the motion capture"
+
     PIANO_OSSA: list[_Voce] = []
     _timer = None
     _tracker = None
@@ -398,8 +440,8 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             pose_bone.rotation_mode = 'QUATERNION'
         pose_bone.rotation_quaternion = self._smoothed_quat
 
-    #Handel the keywork events for the motion capture
-    def modal(self, context: bpy.types.Context, event: bpy.types.Event) -> set[str]:
+    #Handle the keywork events for the motion capture
+    def modal(self, context: bpy.types.Context, event: bpy.types.Event) -> set[Literal['RUNNING_MODAL'] | Literal['CANCELLED'] | Literal['FINISHED'] | Literal['PASS_THROUGH'] | Literal['INTERFACE']]:
         """Handel the keywork events for the motion capture"""
         if event.type in {'RIGHTMOUSE', 'ESC'}:
             self.cancel(context)
@@ -470,15 +512,32 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             return ADVANCE_TRACKED_INDICES
         return TRACKED_INDICES
 
-    def execute(self, context: bpy.types.Context) -> set[str]:
+    def execute(self, context: bpy.types.Context) -> set[Literal['RUNNING_MODAL'] | Literal['CANCELLED'] | Literal['FINISHED'] | Literal['PASS_THROUGH'] | Literal['INTERFACE']]:
+        settings = (context.scene.facemocap)
+        #now is necessary to check the source and target rig
         self._rig = find_rig(context)
-        self._track_idx = self._get_track_index(self._rig)
-        FACEMOCAP_OT_start_capture.PIANO_OSSA = _piano_ossa(self._rig)
+        #self._track_idx = self._get_track_index(self._rig)
+        #FACEMOCAP_OT_start_capture.PIANO_OSSA = _piano_ossa(self._rig)
         
         if not self._rig:
             self.report({'ERROR'}, "FaceMocap rig not found. Generate it before starting.")
             return {'CANCELLED'}
 
+        properties.ensure_mapping(settings)
+        mappings = []
+
+        for item in settings.mappings:
+            source_bones = tuple(name.strip() for name in item.source_bones.split(",") if name.strip())
+            mappings.append(
+                MappingRuntime(
+                    role=item.role,
+                    target=item.target_bone,
+                    source=source_bones,
+                    mode=item.mode,
+                    gain=item.gain,
+                    enable=item.enabled
+                )
+            )
         self._tracker = FaceTracker()
         if not self._tracker.start():
             self.report({'ERROR'}, "Unable to start the webcam.")
@@ -492,6 +551,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         bpy.ops.object.mode_set(mode='POSE')
 
         self._area = context.area if context.area and context.area.type == 'VIEW_3D' else None
+        #we should use the retarget for the calibration
         self._begin_calibration(context)
         self._set_header(context, "keep a relaxed facial expression...")
 

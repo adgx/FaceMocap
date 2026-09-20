@@ -30,6 +30,17 @@ class LandmarkBoneMap:
     motion_mode: MotionMode = MotionMode.LANDMARK
     rot_landmarks: tuple[int, ...] = ()
 
+#added: data structure for the mapping in runtime
+@dataclass(frozen=True)
+class MappingRuntime:
+    role: str
+    source: tuple[str, ...]
+    target: str
+    mode: MotionMode
+    gain: float = 1.0
+    enable: bool = True
+    axis_mask: tuple[bool, bool, bool] = (True, True, True)
+    
 #added: data structure that allows us to create a mapping between the source skeleton 
 # and the target skeleton
 @dataclass(frozen=True)
