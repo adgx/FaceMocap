@@ -49,7 +49,7 @@ def populate_default_mapping(settings):
         item.role = role
         item.target_bone = reTargetMap.target
         item.source_bones = ",".join(reTargetMap.source)
-        item.mode = reTargetMap.mode
+        item.mode = reTargetMap.mode.value
         item.gain = reTargetMap.gain
         item.enabled = reTargetMap.enable
 

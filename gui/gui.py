@@ -60,7 +60,7 @@ class FACEMOCAP_PT_main_panel(Panel):
         row.operator("facemocap.initialize", icon="FILE_REFRESH")
         row.operator("facemocap.validate", icon="CHECKMARK")
         # Generatore source rig
-        box_advance_setup.operator("facemocap.create_advance_armature", text="Generate Advance Armature", icon='BONE_DATA')
+        box_advance_setup.operator("facemocap.create_advance_armature", text="Generate Source Rig", icon='BONE_DATA')
         #Mapping
         box_mapping = layout.box()
         box_mapping.label(text="4. Target Mapping")
