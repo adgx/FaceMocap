@@ -5,6 +5,8 @@ from mathutils import Quaternion, Vector
 
 from ..core import solver
 from ..core import config
+from ..core import rig
+from ..core.retarget import RetargetSolver
 from ..core.config import MotionMode, LandmarkSample, LANDMARKS_MAP, FACE_MAPPING, LANDMARKERS_FACE_MAPPING, LM_FOREHEAD, LM_NASION, LM_SIDE_L, LM_SIDE_R
 from ..core.rig import find_rig, LANDMARKS_RIG_NAME
 from ..core.webcam_core import FaceTracker
@@ -125,6 +127,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
     _rig = None
     _track_idx = TRACKED_INDICES
     _landmark_maps = LANDMARKS_MAP
+    retarget = RetargetSolver()
 
     #added
     def configure(self, source_rig, target_rig, mappings):
@@ -139,7 +142,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
 
         if frame is None:
             return None
-
+        #it is possible improve it
         indices = {
             data.id_landmark
             for data in config.LANDMARKS_MAP.values()
@@ -160,6 +163,30 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             head_rotation=frame.rotation
         )
 
+    #added
+    def apply_target(self, target_pose):
+        if self.target_rig is None:
+            return
+
+        mapping_by_role = {mapping.role: mapping for mapping in self.mappings}
+
+        for role, (mode, value) in target_pose.items():
+            mapping = (mapping_by_role.get(role))
+
+            if mapping is None:
+                continue
+
+            pose_bone = (self.target_rig.pose.bones.get(mapping.target_bone))
+
+            if pose_bone is None:
+                continue
+
+            if mode == "TRANSLATION":
+                rig.apply_rotation(pose_bone, value)
+            elif mode = "ROTATION":
+                rig.apply_rotation(pose_bone, value.to_matrix())
+
+    #added
     def update(self, context):
         landmarks = (self.latest_landmarks)
 
@@ -171,7 +198,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         if source_pose is None:
             return
 
-        if self.retarget.neutra_head_rotation is None:
+        if self.retarget.neutral_head_rotation is None:
             return
         
         settings = (context.scene.facemocap)
@@ -179,6 +206,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
 
         self.apply_target(target_pose)
 
+    #move to retarget class
     def _begin_calibration(self, context: bpy.types.Context) -> None:
         """Azzera la posa e riparte a raccogliere la posa neutra."""
         self._calib_left = config.CALIBRATION_FRAMES
@@ -197,6 +225,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
 
         reset_rig_pose(self._rig)
 
+    #move to retarget class
     def _accumulate_calibration(self, local, origin, rot, scale) -> None:
         for idx, vec in local.items():
             if idx in self._calib_sum:
@@ -214,6 +243,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
 
         self._calib_left -= 1
 
+    #move to retarget class
     def _finish_calibration(self, context: bpy.types.Context) -> bool:
         count = len(self._calib_quats)
         if count == 0:
@@ -472,7 +502,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         self.report({'INFO'}, "Motion Capture started. Press ESC to stop, C to recalibrate.")
         return {'RUNNING_MODAL'}
 
-    def cancel(self, context: bpy.types.Context) -> set[str]:
+    def cancel(self, context: bpy.types.Context) -> None:
         wm = context.window_manager
         if self._timer:
             wm.event_timer_remove(self._timer)

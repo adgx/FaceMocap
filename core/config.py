@@ -30,6 +30,103 @@ class LandmarkBoneMap:
     motion_mode: MotionMode = MotionMode.LANDMARK
     rot_landmarks: tuple[int, ...] = ()
 
+#added: data structure that allows us to create a mapping between the source skeleton 
+# and the target skeleton
+@dataclass(frozen=True)
+class RetargetMap:
+    source: tuple[str, ...]
+    target: str
+    mode: MotionMode
+    gain: float = 1.0
+    enable: bool = True
+    axis_mask: tuple[bool, bool, bool] = (True, True, True)
+
+#mapping between landmarks and target bones 
+#the dir key is the role 
+DEFAULT_RETARGET_MAP = {
+    #to see the source LMK
+    "Neck": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                target="DEF-Neck2",
+                mode=MotionMode.ROTATION),
+    "Head": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                    target="DEF-Head",
+                    mode=MotionMode.ROTATION),
+    "Jaw": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                    target="DEF-Jaw",
+                    mode=MotionMode.ROTATION),
+    #Nostril
+    "Nose_nostril_L": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                    target="DEF-Nostril.L",
+                    mode=MotionMode.TRANSLATION),
+    "Nose_nostril_R": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                        target="DEF-Nostril.R",
+                        mode=MotionMode.TRANSLATION),
+    #Lips, to see the source LMK
+    "Lip_main_upp": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                    target="CLT-Lip_main_upp",
+                    mode=MotionMode.TRANSLATION),
+    "Lip_local_upp_L": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                    target="CLT-Lip_local_upp.L",
+                    mode=MotionMode.TRANSLATION),
+    "Lip_local_upp_R": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                    target="CLT-Lip_local_upp.R",
+                    mode=MotionMode.TRANSLATION),
+    "Lip_main_low": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                        target="CLT-Lip_main_low",
+                        mode=MotionMode.TRANSLATION),
+    "Lip_local_low_L": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                        target="CLT-Lip_local_low.L",
+                        mode=MotionMode.TRANSLATION),
+    "Lip_local_low_R": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                        target="CLT-Lip_local_low.R",
+                        mode=MotionMode.TRANSLATION),
+    "Lip_corn_L": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                            target="CLT-Lip_corn.L",
+                            mode=MotionMode.TRANSLATION),
+    "Lip_corn_R": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                                target="CLT-Lip_corn.R",
+                                mode=MotionMode.TRANSLATION),
+    #Brow, to see the source LMK
+    "Brow_in_L": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                                target="CLT-Brow_in.L",
+                                mode=MotionMode.TRANSLATION),
+    "Brow_mid_L": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                                target="CLT-Brow_mid.L",
+                                mode=MotionMode.TRANSLATION),
+    "Brow_out_L": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                                target="CLT-Brow_out.L",
+                                mode=MotionMode.TRANSLATION),
+    "Brow_in_R": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                                    target="CLT-Brow_in.R",
+                                    mode=MotionMode.TRANSLATION),
+    "Brow_mid_R": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                                    target="CLT-Brow_mid.R",
+                                    mode=MotionMode.TRANSLATION),
+    "Brow_out_R": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                                    target="CLT-Brow_out.R",
+                                    mode=MotionMode.TRANSLATION),
+    #Eye, to see the source LMK
+    "Eye_L": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                                    target="TGT-Eye.L",
+                                    mode=MotionMode.TRANSLATION),
+    "Eye_R": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                                    target="TGT-Eye.R",
+                                    mode=MotionMode.TRANSLATION),
+    #Eyelid, to see the source LMK
+    "Eyelid_upp_L": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                                        target="P-Eyelid_upp.L",
+                                        mode=MotionMode.TRANSLATION),
+    "Eyelid_upp_R": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                                        target="P-Eyelid_upp.R",
+                                        mode=MotionMode.TRANSLATION),
+    "Eyelid_low_L": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                                            target="P-Eyelid_low.L",
+                                            mode=MotionMode.TRANSLATION),
+    "Eyelid_low_R": RetargetMap(source=("LMK-Lip_main-upp", "LMK-Lip_corner.L", "LMK-Lip_corner.R"),
+                                            target="P-Eyelid_low.R",
+                                            mode=MotionMode.TRANSLATION),
+}
+
 class BoneMap(NamedTuple):
     landmark: int               # indice MediaPipe che pilota l'osso
     parent_landmark: int        # landmark del genitore, None per la radice
