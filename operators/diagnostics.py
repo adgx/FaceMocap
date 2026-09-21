@@ -18,7 +18,7 @@ from mathutils import Vector
 
 from ..core import config, solver
 from ..core.config import FACE_MAPPING
-from ..core.rig import RIG_NAME, find_rig
+from ..core.rig import BASE_RIG_NAME, find_rig
 # Si riusano gli helper del binder e non una copia: il report deve descrivere
 # esattamente le stesse isole su cui ragiona bind_by_islands, altrimenti si
 # finisce a confrontare due suddivisioni diverse e la diagnosi non vale nulla.
@@ -358,7 +358,7 @@ def _sezione_mesh(righe, dati, arm_obj):
         if mesh_obj.parent is None:
             righe.append("  parent            : nessuno")
         else:
-            marchio = "  (= %s)" % RIG_NAME if mesh_obj.parent is arm_obj else ""
+            marchio = "  (= %s)" % BASE_RIG_NAME if mesh_obj.parent is arm_obj else ""
             righe.append("  parent            : %s [tipo %s]%s"
                          % (mesh_obj.parent.name, mesh_obj.parent_type, marchio))
 
@@ -372,11 +372,11 @@ def _sezione_mesh(righe, dati, arm_obj):
 def _sezione_ossa(righe, dati, arm_obj, mento=None):
     righe.append("")
     righe.append("=" * 78)
-    righe.append("2. OSSA DI %s" % RIG_NAME)
+    righe.append("2. OSSA DI %s" % BASE_RIG_NAME)
     righe.append("=" * 78)
 
     if arm_obj is None:
-        righe.append("  armatura '%s' non trovata nella scena" % RIG_NAME)
+        righe.append("  armatura '%s' non trovata nella scena" % BASE_RIG_NAME)
         return
 
     if mento is not None and mento["z_mento"] is not None:
@@ -1054,7 +1054,7 @@ class FACEMOCAP_OT_fix_rig(bpy.types.Operator):
     def execute(self, context):
         rig = find_rig()
         if rig is None:
-            self.report({'ERROR'}, "Armatura '%s' non trovata." % RIG_NAME)
+            self.report({'ERROR'}, "Armatura '%s' non trovata." % BASE_RIG_NAME)
             return {'CANCELLED'}
         if not rig.visible_get():
             self.report({'ERROR'}, "L'armatura e' nascosta: rendila visibile "

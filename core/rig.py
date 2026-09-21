@@ -2,20 +2,26 @@ import bpy
 
 from mathutils import Vector, Matrix
 
-RIG_NAME = "FaceMocap_Rig"
-ADVANCED_RIG_NAME = "RIG-FaceMocap_advanced_face"
+BASE_RIG_NAME = "RIG-FaceMocap_base"
+TARGET_RIG_NAME = "RIG-FaceMocap_advanced_face"
 LANDMARKS_RIG_NAME = "RIG-FaceMocap_Landmarkers"
+
 from .config import FACE_MAPPING, ROTATION_BONES, LANDMARKERS_FACE_MAPPING
 from .solver import traslation_to_bone_space
 
 #it could make sense to use a distintion between the sorce, and target rig   
-def find_rig(context=None):
+def find_rig(context=None, name_rig: str =""):
     """L'armatura del rig, o None. Cercata per nome o per armatura attiva"""
-    
-    for name in (LANDMARKS_RIG_NAME, RIG_NAME):
-        obj = bpy.data.objects.get(name)
-        if obj is not None and obj.type == 'ARMATURE':
-            return obj
+
+    if not name_rig.__len__():
+        obj = bpy.data.objects.get(BASE_RIG_NAME)
+        if (obj is None) or obj.type == "ARMATURE":
+                return None
+        return obj
+
+    obj = bpy.data.objects.get(name_rig)
+    if obj is not None and obj.type == 'ARMATURE':
+        return obj
     
     return None
 
@@ -103,3 +109,22 @@ def validate_target(rig, mappings):
             missing.append(name)
 
     return sorted(set(missing))
+
+def reset_rig_pose(rig):
+    """Riporta a riposo le ossa gestite dal mocap.
+       Reset the bone location position and rotation
+    """
+    if rig.name == LANDMARKS_RIG_NAME:
+            mapping = LANDMARKERS_FACE_MAPPING
+    else: 
+        mapping = FACE_MAPPING
+
+    for bone_name in mapping:
+        pose_bone = rig.pose.bones.get(bone_name)
+        if not pose_bone:
+            continue
+        pose_bone.location = (0.0, 0.0, 0.0)
+        if pose_bone.rotation_mode == 'QUATERNION':
+            pose_bone.rotation_quaternion = (1.0, 0.0, 0.0, 0.0)
+        else:
+            pose_bone.rotation_euler = (0.0, 0.0, 0.0)

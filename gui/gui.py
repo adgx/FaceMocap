@@ -38,12 +38,12 @@ class FACEMOCAP_PT_main_panel(Panel):
 
         # Importazione Modello
         box_model = layout.box()
-        box_model.label(text="1. 3D Mesh", icon='MESH_MONKEY')
+        box_model.label(text="3D Mesh", icon='MESH_MONKEY')
         box_model.operator("facemocap.import_custom_model", text="Importa Modello", icon='IMPORT')
 
         # Setup dell'Armatura
         box_setup = layout.box()
-        box_setup.label(text="2. Setup Armature", icon='OUTLINER_OB_ARMATURE')
+        box_setup.label(text="Setup Armature", icon='OUTLINER_OB_ARMATURE')
 
         # Generatore Armatura Standard
         box_setup.operator("facemocap.create_armature", text="Generate Base Armature", icon='BONE_DATA')
@@ -54,7 +54,7 @@ class FACEMOCAP_PT_main_panel(Panel):
 
         # Setup source rig and target rig
         box_advance_setup = layout.box()
-        box_advance_setup.label(text="3. Advance Setup", icon="OUTLINER_OB_ARMATURE")
+        box_advance_setup.label(text="Advance Setup", icon="OUTLINER_OB_ARMATURE")
         box_advance_setup.prop(settings, "source_rig_name", text="Source")
         box_advance_setup.prop(settings, "target_rig_name", text="Target")
         row = box_advance_setup.row(align=True)
@@ -64,7 +64,7 @@ class FACEMOCAP_PT_main_panel(Panel):
         box_advance_setup.operator("facemocap.create_advance_armature", text="Generate Source Rig", icon='BONE_DATA')
         #Mapping
         box_mapping = layout.box()
-        box_mapping.label(text="4. Target Mapping")
+        box_mapping.label(text="Target Mapping")
         box_mapping.template_list("FACEMOCAP_UL_mapping", 
                                   "",
                                   settings,
@@ -87,7 +87,7 @@ class FACEMOCAP_PT_main_panel(Panel):
         
         # Motion Capture
         box_mocap = layout.box()
-        box_mocap.label(text="5. Campture", icon='ANIM')
+        box_mocap.label(text="Campture", icon='ANIM')
         box_mocap.prop(settings, "camera_id")
         box_mocap.prop(settings, "mirror_x")
         box_mocap.prop(settings, "smoothing")

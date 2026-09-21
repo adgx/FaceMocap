@@ -1,6 +1,6 @@
 import bpy
 
-from .rig import LANDMARKS_RIG_NAME, ADVANCED_RIG_NAME
+from .rig import LANDMARKS_RIG_NAME, TARGET_RIG_NAME
 from . import config
 from bpy.types import PropertyGroup
 from bpy.props import (
@@ -29,7 +29,7 @@ class FACEMOCAP_PG_mapping(bpy.types.PropertyGroup):
 
 class FACEMOCAP_PG_settings(bpy.types.PropertyGroup):
     source_rig_name: StringProperty(name="Source Rig", description="Armature representing the motion capture data", default=LANDMARKS_RIG_NAME)
-    target_rig_name: StringProperty(name="Target Rig", description="Target armature to which the motion capture data is applied", default=ADVANCED_RIG_NAME)
+    target_rig_name: StringProperty(name="Target Rig", description="Target armature to which the motion capture data is applied", default=TARGET_RIG_NAME)
     camera_id: IntProperty(name="Camera ID", description="Specifies the ID of the camera to use",default=0, min=0, max=20)
     smoothing: FloatProperty(name="Smoothing", description="Defines the alpha value of the anti-jitter filter",default=config.SMOOTHING, min=0.0, max=0.99)
     #we could add the aspect ratio

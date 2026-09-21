@@ -10,7 +10,7 @@ from ..core import config
 from ..core import rig
 from ..core.retarget import RetargetSolver
 from ..core.config import MappingRuntime, MotionMode, LandmarkSample, LANDMARKS_MAP, FACE_MAPPING, LANDMARKERS_FACE_MAPPING, LM_FOREHEAD, LM_NASION, LM_SIDE_L, LM_SIDE_R
-from ..core.rig import find_rig, LANDMARKS_RIG_NAME
+from ..core.rig import find_rig, reset_rig_pose, LANDMARKS_RIG_NAME, BASE_RIG_NAME
 from ..core.webcam_core import FaceTracker
 from .diagnostics import stampa_tabella_scale
 
@@ -73,25 +73,6 @@ def _piano_ossa(rig) -> list[_Voce]:
             motion_mode= data.motion_mode
         ))
     return voci
-
-def reset_rig_pose(rig):
-    """Riporta a riposo le ossa gestite dal mocap.
-       Reset the bone location position and rotation
-    """
-    if rig.name == LANDMARKS_RIG_NAME:
-            mapping = LANDMARKERS_FACE_MAPPING
-    else: 
-        mapping = FACE_MAPPING
-
-    for bone_name in mapping:
-        pose_bone = rig.pose.bones.get(bone_name)
-        if not pose_bone:
-            continue
-        pose_bone.location = (0.0, 0.0, 0.0)
-        if pose_bone.rotation_mode == 'QUATERNION':
-            pose_bone.rotation_quaternion = (1.0, 0.0, 0.0, 0.0)
-        else:
-            pose_bone.rotation_euler = (0.0, 0.0, 0.0)
 
 ####################################################
 #               Operators Classes                  #
@@ -169,6 +150,9 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
     _tracker = None
     _area = None
     _rig = None
+    #to-do move on retarget 
+    _source_rig = None
+    _target_rig = None
     _track_idx = TRACKED_INDICES
     _landmark_maps = LANDMARKS_MAP
     retarget = RetargetSolver()
@@ -516,18 +500,25 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
 
     def execute(self, context: bpy.types.Context) -> set[Literal['RUNNING_MODAL'] | Literal['CANCELLED'] | Literal['FINISHED'] | Literal['PASS_THROUGH'] | Literal['INTERFACE']]:
         settings = (context.scene.facemocap)
-        #now is necessary to check the source and target rig
-        self._rig = find_rig(context)
-        #self._track_idx = self._get_track_index(self._rig)
-        #FACEMOCAP_OT_start_capture.PIANO_OSSA = _piano_ossa(self._rig)
-        
-        if not self._rig:
-            self.report({'ERROR'}, "FaceMocap rig not found. Generate it before starting.")
-            return {'CANCELLED'}
 
         if properties.mapping_is_empty(settings):
-            properties.populate_default_mapping(settings)
-            
+                    properties.populate_default_mapping(settings)
+
+        #if base rig is found so use it for the motion capture and avoid the advance motion capture 
+        self._rig = find_rig(context)
+        if self._rig:
+            self._track_idx = self._get_track_index(self._rig)
+            FACEMOCAP_OT_start_capture.PIANO_OSSA = _piano_ossa(self._rig)
+
+        else:
+            self._rig = find_rig(context, settings.source_rig_name)
+            if not self._rig:
+                        self.report({'ERROR'}, f"FaceMocap source rig: {settings.source_rig_name} or the base rig: {BASE_RIG_NAME} not found. Generate it before starting.")
+                        return {'CANCELLED'}
+            self._target_rig = find_rig(context, settings.target_rig_name)
+            if not self._target_rig:
+                                    self.report({'ERROR'}, f"FaceMocap target rig: {settings.target_rig_name} not found.")
+                                    return {'CANCELLED'}
         mappings = []
 
         for item in settings.mappings:
@@ -542,6 +533,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
                     enable=item.enabled
                 )
             )
+        #handle different cameras
         self._tracker = FaceTracker()
         if not self._tracker.start():
             self.report({'ERROR'}, "Unable to start the webcam.")
@@ -549,6 +541,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
 
         if context.mode != 'OBJECT':
             bpy.ops.object.mode_set(mode='OBJECT')
+
         bpy.ops.object.select_all(action='DESELECT')
         self._rig.select_set(True)
         context.view_layer.objects.active = self._rig

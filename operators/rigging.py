@@ -1,7 +1,7 @@
 import bpy
 
 from ..core.config import FACE_MAPPING, LANDMARKERS_FACE_MAPPING
-from ..core.rig import RIG_NAME, LANDMARKS_RIG_NAME, create_bones
+from ..core.rig import BASE_RIG_NAME, LANDMARKS_RIG_NAME, create_bones
 
 class FACEMOCAP_OT_create_armature(bpy.types.Operator):
     """Genera l'armatura facciale di riferimento per il motion capture"""
@@ -12,7 +12,7 @@ class FACEMOCAP_OT_create_armature(bpy.types.Operator):
     def execute(self, context):
         # Crea l'armatura
         arm_data = bpy.data.armatures.new(name="FaceMocap_Arm_Data")
-        arm_obj = bpy.data.objects.new(name=RIG_NAME, object_data=arm_data)
+        arm_obj = bpy.data.objects.new(name=BASE_RIG_NAME, object_data=arm_data)
 
         # collega l'armatura alla scena
         context.collection.objects.link(arm_obj)
