@@ -35,7 +35,7 @@ class LandmarkBoneMap:
 class MappingRuntime:
     role: str
     source: tuple[str, ...]
-    target: str
+    target_bone: str
     mode: MotionMode
     gain: float = 1.0
     enable: bool = True

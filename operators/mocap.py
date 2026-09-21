@@ -194,7 +194,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
 
     #added
     def apply_target(self, target_pose):
-        if self.target_rig is None:
+        if self._target_rig is None:
             return
 
         mapping_by_role = {mapping.role: mapping for mapping in self.mappings}
@@ -205,7 +205,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             if mapping is None:
                 continue
 
-            pose_bone = (self.target_rig.pose.bones.get(mapping.target_bone))
+            pose_bone = (self._target_rig.pose.bones.get(mapping.target_bone))
 
             if pose_bone is None:
                 continue
@@ -489,32 +489,32 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
     def execute(self, context: bpy.types.Context) -> set[Literal['RUNNING_MODAL'] | Literal['CANCELLED'] | Literal['FINISHED'] | Literal['PASS_THROUGH'] | Literal['INTERFACE']]:
         self.settings = (context.scene.facemocap)
 
-        if properties.mapping_is_empty(settings):
-                    properties.populate_default_mapping(settings)
+        if properties.mapping_is_empty(self.settings):
+                    properties.populate_default_mapping(self.settings)
 
         #if base rig is found so use it for the motion capture and avoid the advance motion capture 
         self._rig = find_rig(context)
         if self._rig:
             FACEMOCAP_OT_start_capture.PIANO_OSSA = _piano_ossa(self._rig)
         else:
-            self._rig = find_rig(context, settings.source_rig_name)
+            self._rig = find_rig(context, self.settings.source_rig_name)
             if not self._rig:
-                        self.report({'ERROR'}, f"FaceMocap source rig: {settings.source_rig_name} or the base rig: {BASE_RIG_NAME} not found. Generate it before starting.")
+                        self.report({'ERROR'}, f"FaceMocap source rig: {self.settings.source_rig_name} or the base rig: {BASE_RIG_NAME} not found. Generate it before starting.")
                         return {'CANCELLED'}
-            self._target_rig = find_rig(context, settings.target_rig_name)
+            self._target_rig = find_rig(context, self.settings.target_rig_name)
             if not self._target_rig:
-                                    self.report({'ERROR'}, f"FaceMocap target rig: {settings.target_rig_name} not found.")
+                                    self.report({'ERROR'}, f"FaceMocap target rig: {self.settings.target_rig_name} not found.")
                                     return {'CANCELLED'}
             
         self._track_idx = self._get_track_index(self._rig)
-        mappings = []
+        self.mappings = []
 
-        for item in settings.mappings:
+        for item in self.settings.mappings:
             source_bones = tuple(name.strip() for name in item.source_bones.split(",") if name.strip())
-            mappings.append(
+            self.mappings.append(
                 MappingRuntime(
                     role=item.role,
-                    target=item.target_bone,
+                    target_bone=item.target_bone,
                     source=source_bones,
                     mode=item.mode,
                     gain=item.gain,

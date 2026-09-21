@@ -2,7 +2,7 @@ from . import solver
 
 from dataclasses import dataclass
 
-from .config import MotionMode
+from .config import MotionMode, MappingRuntime
 
 class RetargetSolver:
     def __init__(self) -> None:
@@ -127,11 +127,11 @@ class RetargetSolver:
 
         return solver.relative_rotation(curr_frame, neutral_frame)
 
-    def solve(self, source_pose, mappings, smoothing, mirror):
+    def solve(self, source_pose, mappings: list[MappingRuntime], smoothing, mirror):
         res = {}
 
         for mapping in mappings:
-            if not mapping.enabled:
+            if not mapping.enable:
                 continue
             if not mapping.target_bone:
                 continue
@@ -154,14 +154,5 @@ class RetargetSolver:
                 rotation = (rotation.to_quaternion())
                 rotation = (self.smooth_quaternion(mapping.role, rotation, smoothing))
                 res[mapping.role] = ("ROTATION", rotation)
-
-        return res
-    #added: in this way is possible otain the default mapping and eventually modify it
-    def get_default_retarget_map(self):
-
-        res = {}
-
-        for k, v in DEFAULT_RETARGET_MAP:
-            res[k] = v
 
         return res
