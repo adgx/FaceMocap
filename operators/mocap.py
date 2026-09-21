@@ -9,9 +9,8 @@ from ..core import properties
 from ..core import config
 from ..core import rig
 from ..core.retarget import RetargetSolver
-from ..core.config import MappingRuntime, MotionMode, LandmarkSample, LANDMARKS_MAP, FACE_MAPPING, LANDMARKERS_FACE_MAPPING, LM_FOREHEAD, LM_NASION, LM_SIDE_L, LM_SIDE_R
+from ..core.config import MappingRuntime, MotionMode, LANDMARKS_MAP, FACE_MAPPING, LANDMARKERS_FACE_MAPPING, LM_FOREHEAD, LM_NASION, LM_SIDE_L, LM_SIDE_R
 from ..core.rig import find_rig, reset_rig_pose, LANDMARKS_RIG_NAME, BASE_RIG_NAME
-from ..core.solver import HeadFrame
 from ..core.webcam_core import FaceTracker
 from .diagnostics import stampa_tabella_scale
 
@@ -215,76 +214,8 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             elif mode == "ROTATION":
                 rig.apply_rotation(pose_bone, value.to_matrix())
 
-    #move to retarget class
-    def _begin_calibration(self, context: bpy.types.Context) -> None:
-        """Azzera la posa e riparte a raccogliere la posa neutra."""
-        self._calib_left = config.CALIBRATION_FRAMES
-        self._calib_sum = {}
-        self._calib_origin = Vector((0.0, 0.0, 0.0))
-        self._calib_scale = 0.0
-        self._calib_quats = []
-
-        self._neutral = None
-        self._unit_scale = None
-        self._bone_scales = {}
-        self._smoothed = {}
-        self._smoothed_rot = {}
-        self._warned_bones = set()
-        self._smoothed_quat = Quaternion((1.0, 0.0, 0.0, 0.0))
-
-        reset_rig_pose(self._rig)
-
-    #move to retarget class
-    def _accumulate_calibration(self, local, head_frame: HeadFrame) -> None:
-        for idx, vec in local.items():
-            if idx in self._calib_sum:
-                self._calib_sum[idx] += vec
-            else:
-                self._calib_sum[idx] = vec.copy()
-
-        self._calib_origin += head_frame.origin
-        self._calib_scale += head_frame.scale
-
-        quat = head_frame.rotation.to_quaternion()
-        if self._calib_quats and quat.dot(self._calib_quats[0]) < 0.0:
-            quat.negate()
-        self._calib_quats.append(quat)
-
-        self._calib_left -= 1
-
-    #move to retarget class
-    def _finish_calibration(self, context: bpy.types.Context) -> bool:
-        count = len(self._calib_quats)
-        if count == 0:
-            return False
-
-        self._neutral = {idx: vec / count for idx, vec in self._calib_sum.items()}
-        self._neutral_origin = self._calib_origin / count
-        self._neutral_scale = self._calib_scale / count
-
-        avg = Quaternion((0.0, 0.0, 0.0, 0.0))
-        for quat in self._calib_quats:
-            avg.w += quat.w
-            avg.x += quat.x
-            avg.y += quat.y
-            avg.z += quat.z
-        avg.normalize()
-        self._neutral_rot = avg.to_matrix()
-
-        dett_unit = {}
-        self._unit_scale = solver.solve_unit_scale(self._rig, self._neutral, dett_unit)
-        if self._unit_scale is None:
-            #self.report({'WARNING'}, "Impossibile stimare la scala del rig: controlla le posizioni delle ossa.")
-            self.report({'WARNING'}, "Unable to estimate rig's scale: check the bones' postions.")
-            return False
-        
-        dett_scale = {}
-        self._bone_scales = solver.solve_bone_scales(
-            self._rig, self._neutral, self._unit_scale, dett_scale
-        )
-
-        stampa_tabella_scale(self._unit_scale, dett_unit, dett_scale)
-
+    def stampa_tabella_scale(self._unit_scale, dett_unit, dett_scale):
+    
         #self.report({'INFO'}, "Calibrato. Scala rig: %.4f unita' per larghezza "
         #            "viso. Tabella delle scale nella console di sistema."
         #            % self._unit_scale)
@@ -415,7 +346,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             return {'CANCELLED'}
 
         if event.type == 'C' and event.value == 'PRESS':
-            self._begin_calibration(context)
+            self.retarget.begin_calibration(self._rig)
             #self._set_header(context, "Ricalibrazione: mantieni il viso neutro")
             self._set_header(context, "Recalibrating: keep a relaxed facial expression.")
             return {'RUNNING_MODAL'}
@@ -441,15 +372,18 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         if source_pose is None:
             return {'CANCELLED'}
         
-        if self._neutral is None:
-            self._accumulate_calibration(local, head_frame)
-            if self._calib_left > 0:
+        if self.retarget._neutral is None:
+            self.retarget.accumulate_calibration(local, head_frame)
+            if self.retarget._calib_left > 0:
                 self._set_header(context, "keep a relaxed facial expression.... %d" % self._calib_left)
-            elif not self._finish_calibration(context):
+            elif not self.retarget.finish_calibration(context):
+                #self.report({'WARNING'}, "Impossibile stimare la scala del rig: controlla le posizioni delle ossa.")
+                self.report({'WARNING'}, "Unable to estimate rig's scale: check the bones' postions.")
                 self.cancel(context)
                 return {'CANCELLED'}
             else:
-                self._set_header(context, "Mocap actived | ESC = stop | C = Ricalibration")
+                self._set_header(context, "Mocap actived | ESC = stop | C = Ricalibration"):
+
         else:
             #to see
             #added: landmark sample concept

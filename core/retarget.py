@@ -2,7 +2,10 @@ from . import solver
 
 from dataclasses import dataclass
 
-from .config import MotionMode, MappingRuntime
+from .config import MotionMode, MappingRuntime, CALIBRATION_FRAMES
+from .rig import reset_rig_pose
+from .solver import HeadFrame
+from mathutils import Quaternion, Vector, Matrix
 
 class RetargetSolver:
     def __init__(self) -> None:
@@ -138,7 +141,7 @@ class RetargetSolver:
 
             mode = mapping.mode
 
-            if mode == MotionMode.TRANSLATION:
+            if mode == MotionMode.TRANSLATION.value:
                 val = self.solve_translation(source_pose, mapping, mirror)
 
                 if val is None:
@@ -146,8 +149,8 @@ class RetargetSolver:
 
                 val = self.smooth_vector(mapping.role, val, smoothing)
                 res[mapping.role] = ("TRANSLATION", val)
-            elif mode == MotionMode.ROTATION:
-                if mapping.role == "jaw":
+            elif mode == MotionMode.ROTATION.value:
+                if mapping.role == "Jaw":
                     rotation = (self.solve_jaw_rotation(source_pose))
                 else: 
                     rotation = (self.solve_head_rotation(source_pose))
@@ -156,3 +159,70 @@ class RetargetSolver:
                 res[mapping.role] = ("ROTATION", rotation)
 
         return res
+
+    #move to retarget class
+    #ok
+    def begin_calibration(self, rig) -> None:
+        """Azzera la posa e riparte a raccogliere la posa neutra."""
+        self._calib_left = CALIBRATION_FRAMES
+        self._calib_sum = {}
+        self._calib_origin = Vector((0.0, 0.0, 0.0))
+        self._calib_scale = 0.0
+        self._calib_quats = []
+
+        self._neutral = None
+        self._unit_scale = None
+        self._bone_scales = {}
+        self._smoothed = {}
+        self._smoothed_rot = {}
+        self._warned_bones = set()
+        self._smoothed_quat = Quaternion((1.0, 0.0, 0.0, 0.0))
+
+        reset_rig_pose(rig)
+
+    #move to retarget class
+    def accumulate_calibration(self, local, head_frame: HeadFrame) -> None:
+        for idx, vec in local.items():
+            if idx in self._calib_sum:
+                self._calib_sum[idx] += vec
+            else:
+                self._calib_sum[idx] = vec.copy()
+
+        self._calib_origin += head_frame.origin
+        self._calib_scale += head_frame.scale
+
+        quat = head_frame.rotation.to_quaternion()
+        if self._calib_quats and quat.dot(self._calib_quats[0]) < 0.0:
+            quat.negate()
+        self._calib_quats.append(quat)
+
+        self._calib_left -= 1
+
+    #move to retarget class
+    def finish_calibration(self, rig) -> bool:
+        count = len(self._calib_quats)
+        if count == 0:
+            return False
+
+        self._neutral = {idx: vec / count for idx, vec in self._calib_sum.items()}
+        self._neutral_origin = self._calib_origin / count
+        self._neutral_scale = self._calib_scale / count
+
+        avg = Quaternion((0.0, 0.0, 0.0, 0.0))
+        for quat in self._calib_quats:
+            avg.w += quat.w
+            avg.x += quat.x
+            avg.y += quat.y
+            avg.z += quat.z
+        avg.normalize()
+        self._neutral_rot = avg.to_matrix()
+
+        dett_unit = {}
+        self._unit_scale = solver.solve_unit_scale(rig, self._neutral, dett_unit)
+        if self._unit_scale is None:
+            #self.report({'WARNING'}, "Impossibile stimare la scala del rig: controlla le posizioni delle ossa.")
+            self.report({'WARNING'}, "Unable to estimate rig's scale: check the bones' postions.")
+            return False
+        
+        dett_scale = {}
+        self._bone_scales = solver.solve_bone_scales(rig, self._neutral, self._unit_scale, dett_scale)
