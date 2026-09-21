@@ -11,6 +11,7 @@ from ..core import rig
 from ..core.retarget import RetargetSolver
 from ..core.config import MappingRuntime, MotionMode, LandmarkSample, LANDMARKS_MAP, FACE_MAPPING, LANDMARKERS_FACE_MAPPING, LM_FOREHEAD, LM_NASION, LM_SIDE_L, LM_SIDE_R
 from ..core.rig import find_rig, reset_rig_pose, LANDMARKS_RIG_NAME, BASE_RIG_NAME
+from ..core.solver import HeadFrame
 from ..core.webcam_core import FaceTracker
 from .diagnostics import stampa_tabella_scale
 
@@ -214,26 +215,6 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             elif mode == "ROTATION":
                 rig.apply_rotation(pose_bone, value.to_matrix())
 
-    #added
-    def update(self, context):
-        landmarks = (self.latest_landmarks)
-
-        if landmarks is None:
-            return
-
-        source_pose = (self.solve_source(landmarks, context))
-
-        if source_pose is None:
-            return
-
-        if self.retarget.neutral_head_rotation is None:
-            return
-        
-        settings = (context.scene.facemocap)
-        target_pose = (self.retarget.solve(source_pose, self.mappings, settings.smoothing, settings.mirror_x))
-
-        self.apply_target(target_pose)
-
     #move to retarget class
     def _begin_calibration(self, context: bpy.types.Context) -> None:
         """Azzera la posa e riparte a raccogliere la posa neutra."""
@@ -254,17 +235,17 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         reset_rig_pose(self._rig)
 
     #move to retarget class
-    def _accumulate_calibration(self, local, origin, rot, scale) -> None:
+    def _accumulate_calibration(self, local, head_frame: HeadFrame) -> None:
         for idx, vec in local.items():
             if idx in self._calib_sum:
                 self._calib_sum[idx] += vec
             else:
                 self._calib_sum[idx] = vec.copy()
 
-        self._calib_origin += origin
-        self._calib_scale += scale
+        self._calib_origin += head_frame.origin
+        self._calib_scale += head_frame.scale
 
-        quat = rot.to_quaternion()
+        quat = head_frame.rotation.to_quaternion()
         if self._calib_quats and quat.dot(self._calib_quats[0]) < 0.0:
             quat.negate()
         self._calib_quats.append(quat)
@@ -355,7 +336,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         #retarget
         target_pose = self._retarget_pose(source_pose=source_pose, settings=settings)
         #apply target pose
-        self._apply_target_pose(target_pose, alpha=1.0 - config.SMOOTHING)
+        self.apply_target(target_pose)
 
     def _warn_bad_lever(self, bone_name):
         """Avvisa una sola volta che l'osso non e' orientato come una leva.
@@ -451,27 +432,17 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         head_frame = solver.build_head_frame(landmarks, aspect)
         if head_frame is None:
             return {'PASS_THROUGH'}
-        origin, rot, scale = head_frame
         #ok
-        local = solver.to_head_local(landmarks, self._track_idx, origin, rot, scale, aspect)
-        #added: landmark sample concept
-        samples = {}
-
-        for idx, curr in local.items():
-            neutral = self._neutral.get(idx)
-
-            if neutral is None:
-                continue
-
-            samples[idx] = LandmarkSample(
-                idx=idx,
-                pos=curr,
-                neutral_pos=neutral,
-                delta=curr - neutral
-            )
-
+        local = solver.to_head_local(landmarks, head_frame, self._track_idx, aspect)
+        source_pose = solver.SourcePose(local=local, 
+                                        origin=head_frame.origin, 
+                                        scale=head_frame.scale,
+                                        head_rotation=head_frame.rotation)
+        if source_pose is None:
+            return {'CANCELLED'}
+        
         if self._neutral is None:
-            self._accumulate_calibration(local, origin, rot, scale)
+            self._accumulate_calibration(local, head_frame)
             if self._calib_left > 0:
                 self._set_header(context, "keep a relaxed facial expression.... %d" % self._calib_left)
             elif not self._finish_calibration(context):
@@ -481,8 +452,25 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
                 self._set_header(context, "Mocap actived | ESC = stop | C = Ricalibration")
         else:
             #to see
-            self._apply_pose(context, local, origin, rot, scale)
-
+            #added: landmark sample concept
+            #samples = {}
+            #
+            #for idx, curr in local.items():
+            #    neutral = self._neutral.get(idx)
+    #
+            #    if neutral is None:
+            #        continue
+    #
+            #    samples[idx] = LandmarkSample(
+            #        idx=idx,
+            #        pos=curr,
+            #        neutral_pos=neutral,
+            #        delta=curr - neutral
+            #    )
+            #todo: make a incapsulation in way that this working with the base rig
+            #self._apply_pose(context, local, origin, rot, scale)
+            target_pose = self.retarget.solve(source_pose, self.mappings, self.settings.smoothing, self.settings.mirror_x)
+            self.apply_target(target_pose)
         #to see
         if self._area:
             self._area.tag_redraw()
@@ -499,7 +487,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         return TRACKED_INDICES
 
     def execute(self, context: bpy.types.Context) -> set[Literal['RUNNING_MODAL'] | Literal['CANCELLED'] | Literal['FINISHED'] | Literal['PASS_THROUGH'] | Literal['INTERFACE']]:
-        settings = (context.scene.facemocap)
+        self.settings = (context.scene.facemocap)
 
         if properties.mapping_is_empty(settings):
                     properties.populate_default_mapping(settings)
@@ -507,9 +495,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         #if base rig is found so use it for the motion capture and avoid the advance motion capture 
         self._rig = find_rig(context)
         if self._rig:
-            self._track_idx = self._get_track_index(self._rig)
             FACEMOCAP_OT_start_capture.PIANO_OSSA = _piano_ossa(self._rig)
-
         else:
             self._rig = find_rig(context, settings.source_rig_name)
             if not self._rig:
@@ -519,6 +505,8 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             if not self._target_rig:
                                     self.report({'ERROR'}, f"FaceMocap target rig: {settings.target_rig_name} not found.")
                                     return {'CANCELLED'}
+            
+        self._track_idx = self._get_track_index(self._rig)
         mappings = []
 
         for item in settings.mappings:

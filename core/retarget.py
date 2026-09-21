@@ -131,7 +131,6 @@ class RetargetSolver:
         res = {}
 
         for mapping in mappings:
-            #maybe remove this option
             if not mapping.enabled:
                 continue
             if not mapping.target_bone:
