@@ -24,18 +24,19 @@ class FACEMOCAP_PG_mapping(bpy.types.PropertyGroup):
                            ("ROTATION", "Rotation", "Rotate target bone")
                        ],
                        default="TRANSLATION")
-    gain: FloatProperty(name="Gain", default=1.0, min=0.0, max=10.0)
+    gain: FloatProperty(name="Gain", description="Defines how much the source bones influence the target bone", default=1.0, min=0.0, max=10.0)
     enabled: BoolProperty(name="Enabled", default=True)
 
 class FACEMOCAP_PG_settings(bpy.types.PropertyGroup):
-    source_rig_name: StringProperty(name="Source Rig", default=LANDMARKS_RIG_NAME)
-    target_rig_name: StringProperty(name="Target Rig", default=ADVANCED_RIG_NAME)
-    camera_id: IntProperty(name="Camera", default=0, min=0, max=20)
-    smoothing: FloatProperty(name="Smoothing", default=config.SMOOTHING, min=0.0, max=0.99)
+    source_rig_name: StringProperty(name="Source Rig", description="Armature representing the motion capture data", default=LANDMARKS_RIG_NAME)
+    target_rig_name: StringProperty(name="Target Rig", description="Target armature to which the motion capture data is applied", default=ADVANCED_RIG_NAME)
+    camera_id: IntProperty(name="Camera ID", description="Specifies the ID of the camera to use",default=0, min=0, max=20)
+    smoothing: FloatProperty(name="Smoothing", description="Defines the alpha value of the anti-jitter filter",default=config.SMOOTHING, min=0.0, max=0.99)
     #we could add the aspect ratio
     mirror_x: BoolProperty(
         name="Mirror X axis",
-        description="Attiva se il modello si muove al contrario su sinistra/destra",
+        #description="Attiva se il modello si muove al contrario su sinistra/destra",
+        description="Enabled if left/right movement is reversed",
         default=False,
     )
     mappings: CollectionProperty(type=FACEMOCAP_PG_mapping)
@@ -48,7 +49,7 @@ def populate_default_mapping(settings):
         item = settings.mappings.add()
         item.role = role
         item.target_bone = reTargetMap.target
-        item.source_bones = ",".join(reTargetMap.source)
+        item.source_bones = ", ".join(reTargetMap.source)
         item.mode = reTargetMap.mode.value
         item.gain = reTargetMap.gain
         item.enabled = reTargetMap.enable

@@ -17,7 +17,8 @@ class FACEMOCAP_UL_mapping(UIList):
         row = layout.row(align=True)
         row.prop(item, "enabled", text="")
         row.label(text=item.role)
-        row.prop(item, "target_bone", text="")
+        row.label(text=item.target_bone)
+        row.label(text=item.source_bones)
         row.prop(item, "mode", text="")
         row.prop(item, "gain", text="")
 
@@ -77,11 +78,12 @@ class FACEMOCAP_PT_main_panel(Panel):
             item = (settings.mappings[index])
             detail = box_mapping.box()
             detail.label(text="Mapping")
-            detail.prop(item, "role")
+            row = detail.row()
+            row.enabled = False
+            row.prop(item, "role")
+            detail.prop(item, "target_bone")
             detail.prop(item, "source_bones")
-            detail.prop(item, "mode")
-            detail.prop(item, "gain")
-            detail.prop(item, "enabled")
+
         
         # Motion Capture
         box_mocap = layout.box()

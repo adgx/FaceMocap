@@ -98,6 +98,7 @@ def reset_rig_pose(rig):
 ####################################################
 #added
 class FACEMOCAP_OT_initialize(bpy.types.Operator):
+    """Loads the default mapping"""
     bl_idname = "facemocap.initialize"
     bl_label = "Load Default Mapping"
 
@@ -126,6 +127,7 @@ class FACEMOCAP_OT_reset_pose(bpy.types.Operator):
         return {'FINISHED'}
 #added
 class FACEMOCAP_OT_validate(bpy.types.Operator):
+    """Checks whether the mapping is valid for motion capture and applies it"""
     bl_idname = "facemocap.validate"
     bl_label = "validate Mapping"
 
