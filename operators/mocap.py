@@ -210,19 +210,9 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
                 continue
 
             if mode == "TRANSLATION":
-                rig.apply_rotation(pose_bone, value)
+                rig.apply_translation(pose_bone, value)
             elif mode == "ROTATION":
                 rig.apply_rotation(pose_bone, value.to_matrix())
-
-    def stampa_tabella_scale(self._unit_scale, dett_unit, dett_scale):
-    
-        #self.report({'INFO'}, "Calibrato. Scala rig: %.4f unita' per larghezza "
-        #            "viso. Tabella delle scale nella console di sistema."
-        #            % self._unit_scale)
-                    
-        self.report({'INFO'}, "Calibrated. Rig's scale: %.4f unit per width"
-                    "face. Table scale on console."
-                    % self._unit_scale)
 
         return True
 
@@ -375,14 +365,17 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         if self.retarget._neutral is None:
             self.retarget.accumulate_calibration(local, head_frame)
             if self.retarget._calib_left > 0:
-                self._set_header(context, "keep a relaxed facial expression.... %d" % self._calib_left)
-            elif not self.retarget.finish_calibration(context):
+                self._set_header(context, "keep a relaxed facial expression.... %d" % self.retarget._calib_left)
+            elif not self.retarget.finish_calibration(self._rig):
                 #self.report({'WARNING'}, "Impossibile stimare la scala del rig: controlla le posizioni delle ossa.")
                 self.report({'WARNING'}, "Unable to estimate rig's scale: check the bones' postions.")
                 self.cancel(context)
                 return {'CANCELLED'}
             else:
-                self._set_header(context, "Mocap actived | ESC = stop | C = Ricalibration"):
+                self.report({'INFO'}, "Calibrated. Rig's scale: %.4f unit per width"
+                                    "face. Table scale on console."
+                                    % self.retarget._unit_scale)
+                self._set_header(context, "Mocap actived | ESC = stop | C = Ricalibration")
 
         else:
             #to see
@@ -471,7 +464,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
 
         self._area = context.area if context.area and context.area.type == 'VIEW_3D' else None
         #we should use the retarget for the calibration
-        self._begin_calibration(context)
+        self.retarget.begin_calibration(self._rig)
         self._set_header(context, "keep a relaxed facial expression...")
 
         wm = context.window_manager

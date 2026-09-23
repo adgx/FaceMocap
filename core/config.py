@@ -73,7 +73,7 @@ DEFAULT_RETARGET_MAP = {
                         target="DEF-Nostril.R",
                         mode=MotionMode.TRANSLATION),
     #Lips, to see the source LMK
-    "Lip main upp": RetargetMap(source=("LMK-Lip_main-upp",),
+    "Lip main upp": RetargetMap(source=("LMK-Lip_main_upp",),
                     target="CLT-Lip_main_upp",
                     mode=MotionMode.TRANSLATION),
     "Lip local upp L": RetargetMap(source=("LMK-Lip_upp2.L",),
@@ -82,7 +82,7 @@ DEFAULT_RETARGET_MAP = {
     "Lip local upp R": RetargetMap(source=("LMK-Lip_upp2.R",),
                     target="CLT-Lip_local_upp.R",
                     mode=MotionMode.TRANSLATION),
-    "Lip main low": RetargetMap(source=("LMK-Lip_main-low",),
+    "Lip main low": RetargetMap(source=("LMK-Lip_main_low",),
                         target="CLT-Lip_main_low",
                         mode=MotionMode.TRANSLATION),
     "Lip local low L": RetargetMap(source=("LMK-Lip_low2.L",),

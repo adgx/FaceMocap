@@ -86,7 +86,7 @@ def apply_translation(pose_bone, vec):
 
 #added
 def apply_rotation(pose_bone, rotation):
-    pose_bone.rotation_mode = "QUATERNINON"
+    pose_bone.rotation_mode = "QUATERNION"
     pose_bone.rotation_quaternion = (rotation.to_quaternion())
 
 #added
