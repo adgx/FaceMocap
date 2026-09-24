@@ -3,7 +3,7 @@ from . import solver
 from dataclasses import dataclass
 
 from .config import MotionMode, MappingRuntime, CALIBRATION_FRAMES, LANDMARKS_MAP
-from .rig import reset_rig_pose
+from .rig import reset_rig_pose, apply_rotation, apply_translation
 from .solver import HeadFrame
 from ..operators.diagnostics import stampa_tabella_scale
 from mathutils import Quaternion, Vector, Matrix
@@ -91,7 +91,7 @@ class RetargetSolver:
 
         delta *= mapping.gain
 
-        return solver.head_local_to_blender(delta, mirror)
+        return solver.head_local_to_blender(delta, mirror)*self._bone_scales.get(mapping.source[0])
 
     def solve_head_rotation(self, source_pose):
         if self._neutral_rot is None:
@@ -135,7 +135,7 @@ class RetargetSolver:
 
         return solver.relative_rotation(curr_frame, neutral_frame)
 
-    def solve(self, source_pose, mappings: list[MappingRuntime], smoothing, mirror):
+    def solve(self, source_rig, source_pose, mappings: list[MappingRuntime], smoothing, mirror):
         res = {}
 
         for mapping in mappings:
@@ -145,6 +145,7 @@ class RetargetSolver:
                 continue
 
             mode = mapping.mode
+            pose_bone = (source_rig.pose.bones.get(mapping.source[0]))
 
             if mode == MotionMode.TRANSLATION.value:
                 val = self.solve_translation(source_pose, mapping, mirror)
@@ -154,6 +155,7 @@ class RetargetSolver:
 
                 val = self.smooth_vector(mapping.role, val, smoothing)
                 res[mapping.role] = ("TRANSLATION", val)
+                apply_translation(pose_bone, val)
             elif mode == MotionMode.ROTATION.value:
                 if mapping.role == "Jaw":
                     rotation = (self.solve_jaw_rotation(source_pose, mapping.source))

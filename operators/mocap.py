@@ -378,25 +378,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
                 self._set_header(context, "Mocap actived | ESC = stop | C = Ricalibration")
 
         else:
-            #to see
-            #added: landmark sample concept
-            #samples = {}
-            #
-            #for idx, curr in local.items():
-            #    neutral = self._neutral.get(idx)
-    #
-            #    if neutral is None:
-            #        continue
-    #
-            #    samples[idx] = LandmarkSample(
-            #        idx=idx,
-            #        pos=curr,
-            #        neutral_pos=neutral,
-            #        delta=curr - neutral
-            #    )
-            #todo: make a incapsulation in way that this working with the base rig
-            #self._apply_pose(context, local, origin, rot, scale)
-            target_pose = self.retarget.solve(source_pose, self.mappings, self.settings.smoothing, self.settings.mirror_x)
+            target_pose = self.retarget.solve(self._rig, source_pose, self.mappings, self.settings.smoothing, self.settings.mirror_x)
             self.apply_target(target_pose)
         #to see
         if self._area:
