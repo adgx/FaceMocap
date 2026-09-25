@@ -53,15 +53,11 @@ class _Voce(NamedTuple):
     motion_mode: MotionMode
 
 #to review in way to adapt it for the advance_rig
-def _piano_ossa(rig) -> list[_Voce]:
+def _piano_ossa() -> list[_Voce]:
     voci = []
-    if rig.name == LANDMARKS_RIG_NAME:
-        mapping = LANDMARKERS_FACE_MAPPING
-    else: 
-        mapping = FACE_MAPPING
 
-    for nome, data in mapping.items():
-        speculare = mapping[solver.mirrored_bone_name(nome)]
+    for nome, data in FACE_MAPPING.items():
+        speculare = FACE_MAPPING[solver.mirrored_bone_name(nome)]
         voci.append(_Voce(
             osso=nome,
             landmark=data.landmark,
@@ -73,6 +69,8 @@ def _piano_ossa(rig) -> list[_Voce]:
             motion_mode= data.motion_mode
         ))
     return voci
+
+PIANO_OSSA = _piano_ossa()
 
 ####################################################
 #               Operators Classes                  #
@@ -164,6 +162,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
     _tracker = None
     _area = None
     _rig = None
+    _base_mocap = False
     #to-do move on retarget 
     _source_rig = None
     _target_rig = None
@@ -261,25 +260,59 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
 
         return result
 
-
-    #modified
     def _apply_pose(self, context: bpy.types.Context, local, origin, rot, scale):
         settings = context.scene.facemocap
+        alpha = 1.0 - config.SMOOTHING
 
-        #solve source landmark skeleton
-        source_pose = self._solve_landmark_pose(local=local, scale=scale, settings=settings)
-        #retarget
-        target_pose = self._retarget_pose(source_pose=source_pose, settings=settings)
-        #apply target pose
-        self.apply_target(target_pose)
+        # Delta rispetto alla posa neutra, ancora in sist. di rif. testa-locale.
+        deltas = {
+            idx: vec - self.retarget._neutral[idx]
+            for idx, vec in local.items()
+            if idx in self.retarget._neutral
+        }
+
+        for voce in PIANO_OSSA:
+            pose_bone = self._rig.pose.bones.get(voce.osso)
+            if not pose_bone:
+                continue
+
+            if settings.mirror_x:
+                lm_idx, parent_idx = voce.landmark_speculare, voce.genitore_speculare
+            else:
+                lm_idx, parent_idx = voce.landmark, voce.genitore
+
+            if parent_idx is None:
+                target = self._solve_head_translation(settings, origin, scale) * voce.gain
+            else:
+                if lm_idx not in deltas or parent_idx not in deltas:
+                    continue
+                relative = deltas[lm_idx] - deltas[parent_idx]
+                scale_b = self.retarget._bone_scales.get(voce.osso, self.retarget._unit_scale)
+                target = solver.head_local_to_blender(relative, settings.mirror_x) * (
+                    scale_b * config.AMPLITUDE * voce.gain
+                )
+
+                if voce.rotazione:
+                    if self._apply_lever_rotation(pose_bone, voce.osso, target, alpha):
+                        continue
+                    self._warn_bad_lever(voce.osso)
+
+            previous = self.retarget._smoothed.get(voce.osso)
+            smoothed = target if previous is None else previous.lerp(target, alpha)
+            self.retarget._smoothed[voce.osso] = smoothed
+
+            pose_bone.location = solver.traslation_to_bone_space(pose_bone, smoothed)
+
+        self._apply_head_rotation(context, rot, alpha)
+
 
     def _warn_bad_lever(self, bone_name):
         """Avvisa una sola volta che l'osso non e' orientato come una leva.
         
         """
-        if bone_name in self._warned_bones:
+        if bone_name in self.retarget._warned_bones:
             return
-        self._warned_bones.add(bone_name)
+        self.retarget._warned_bones.add(bone_name)
         self.report(
             {'WARNING'},
             "Osso '%s': la coda deve stare sul MENTO e la testa "
@@ -325,9 +358,8 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         if not pose_bone:
             return
 
-        settings = context.scene.facemocap
-        armature_rot = solver.head_rotation_matrix(self._neutral_rot, rot)
-        if settings.mirror_x:
+        armature_rot = solver.head_rotation_matrix(self.retarget._neutral_rot, rot)
+        if self.settings.mirror_x:
             armature_rot = solver.mirror_rotation(armature_rot)
         bone_rot = solver.rotation_to_bone_space(pose_bone, armature_rot)
 
@@ -336,11 +368,11 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             axis, angle = quat.to_axis_angle()
             quat = Quaternion(axis, angle * config.HEAD_GAIN)
 
-        self._smoothed_quat = self._smoothed_quat.slerp(quat, alpha)
+        self.retarget._smoothed_quat = self.retarget._smoothed_quat.slerp(quat, alpha)
 
         if pose_bone.rotation_mode != 'QUATERNION':
             pose_bone.rotation_mode = 'QUATERNION'
-        pose_bone.rotation_quaternion = self._smoothed_quat
+        pose_bone.rotation_quaternion = self.retarget._smoothed_quat
 
     #Handle the keywork events for the motion capture
     def modal(self, context: bpy.types.Context, event: bpy.types.Event) -> set[Literal['RUNNING_MODAL'] | Literal['CANCELLED'] | Literal['FINISHED'] | Literal['PASS_THROUGH'] | Literal['INTERFACE']]:
@@ -392,8 +424,12 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
                 self._set_header(context, "Mocap actived | ESC = stop | C = Ricalibration")
 
         else:
-            target_pose = self.retarget.solve(self._rig, source_pose, self.mappings, self.settings.smoothing, self.settings.mirror_x)
-            self.apply_target(target_pose)
+            #function object is better
+            if self._base_mocap:
+                self._apply_pose(context, source_pose.local, source_pose.origin, source_pose.head_rotation, source_pose.scale)
+            else:
+                target_pose = self.retarget.solve(self._rig, source_pose, self.mappings, self.settings.smoothing, self.settings.mirror_x)
+                self.apply_target(target_pose)
         #to see
         if self._area:
             self._area.tag_redraw()
@@ -405,13 +441,13 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             self._area.header_text_set("FaceMocap: " + text)
 
     def _get_track_index(self, rig):
-        if rig.name == LANDMARKS_RIG_NAME:
-            return ADVANCE_TRACKED_INDICES
-        return TRACKED_INDICES
+        if rig.name == BASE_RIG_NAME:
+            return TRACKED_INDICES
+        return ADVANCE_TRACKED_INDICES
 
     def execute(self, context: bpy.types.Context) -> set[Literal['RUNNING_MODAL'] | Literal['CANCELLED'] | Literal['FINISHED'] | Literal['PASS_THROUGH'] | Literal['INTERFACE']]:
         self.settings = (context.scene.facemocap)
-
+        self._base_mocap = False
         if properties.mapping_is_empty(self.settings):
                     properties.populate_default_mapping(self.settings)
 
@@ -419,6 +455,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         self._rig = find_rig(context)
         if self._rig:
             FACEMOCAP_OT_start_capture.PIANO_OSSA = _piano_ossa(self._rig)
+            self._base_mocap = True
         else:
             self._rig = find_rig(context, self.settings.source_rig_name)
             if not self._rig:
