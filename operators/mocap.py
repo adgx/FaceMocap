@@ -100,10 +100,23 @@ class FACEMOCAP_OT_reset_pose(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context: bpy.types.Context) -> set[Literal['RUNNING_MODAL'] | Literal['CANCELLED'] | Literal['FINISHED'] | Literal['PASS_THROUGH'] | Literal['INTERFACE']]:
+        settings = (context.scene.facemocap)
+        #search the base rig
         rig = find_rig(context)
         if not rig:
-            self.report({'ERROR'}, "Armatura FaceMocap not found.")
-            return {'CANCELLED'}
+            #search source rig
+            source_rig = find_rig(context, settings.source_rig_name)
+            if not source_rig:
+                self.report({'ERROR'}, "Base FaceMocap Armature not found.")
+                return {'CANCELLED'}
+            reset_rig_pose(source_rig)
+            target_rig = find_rig(context, settings.target_rig_name)
+            if not target_rig:
+                self.report({'ERROR'}, "Armatura FaceMocap not found.")
+                return {'FINISHED'}
+            reset_rig_pose(target_rig)        
+            return {'FINISHED'}
+
         reset_rig_pose(rig)
         return {'FINISHED'}
 #added
@@ -113,6 +126,7 @@ class FACEMOCAP_OT_validate(bpy.types.Operator):
     bl_label = "validate Mapping"
 
     def execute(self, context) -> set[Literal['RUNNING_MODAL'] | Literal['CANCELLED'] | Literal['FINISHED'] | Literal['PASS_THROUGH'] | Literal['INTERFACE']]:
+        """Check whether the target rig has all target bones specified in the mapping"""
         settings = (context.scene.facemocap)
         target = rig.find_rig(context, settings.target_rig_name, target)
 

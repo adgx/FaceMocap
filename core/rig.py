@@ -114,13 +114,7 @@ def reset_rig_pose(rig):
     """Riporta a riposo le ossa gestite dal mocap.
        Reset the bone location position and rotation
     """
-    if rig.name == LANDMARKS_RIG_NAME:
-            mapping = LANDMARKERS_FACE_MAPPING
-    else: 
-        mapping = FACE_MAPPING
-
-    for bone_name in mapping:
-        pose_bone = rig.pose.bones.get(bone_name)
+    for pose_bone in rig.pose.bones.values():
         if not pose_bone:
             continue
         pose_bone.location = (0.0, 0.0, 0.0)

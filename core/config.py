@@ -145,7 +145,7 @@ DEFAULT_RETARGET_MAP = {
     "Eyelid upper R": RetargetMap(source=("LMK-Eyelid_upp2.R",),
                                         target="P-Eyelid_upp.R",
                                         mode=MotionMode.TRANSLATION,
-                                        gain=1.2),
+                                        gain=1.3),
     "Eyelid lower L": RetargetMap(source=("LMK-Eyelid_low2.L",),
                                             target="P-Eyelid_low.L",
                                             mode=MotionMode.TRANSLATION,
@@ -153,7 +153,7 @@ DEFAULT_RETARGET_MAP = {
     "Eyelid lower R": RetargetMap(source=("LMK-Eyelid_low2.R",),
                                             target="P-Eyelid_low.R",
                                             mode=MotionMode.TRANSLATION,
-                                            gain=1.2),
+                                            gain=1.3),
 }
 
 class BoneMap(NamedTuple):
