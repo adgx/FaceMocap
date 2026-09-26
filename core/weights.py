@@ -72,7 +72,7 @@ def _split_islands(mesh_obj):
 
 
 def _heat_weights_on_subset(mesh_obj, arm_obj, context, indici):
-    """Pesi automatici calcolati su una copia con i soli vertici indicati perchhé
+    """Pesi automatici calcolati su una copia con i soli vertici indicati perché
     parent_set lavora sull'oggetto intero, quindi la sola via per escludere le
     isole rigide dal bone heat e' skinnare una copia temporanea."""
 

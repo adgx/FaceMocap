@@ -3,10 +3,12 @@
 import math
 import statistics
 
+from dataclasses import dataclass
 from mathutils import Matrix, Quaternion, Vector
-
+from .rig import LANDMARKS_RIG_NAME
 from .config import (
     FACE_MAPPING,
+    LANDMARKERS_FACE_MAPPING,
     MAX_FEATURE_SCALE,
     MIN_FEATURE_SCALE,
     LM_FOREHEAD,
@@ -22,7 +24,21 @@ HEAD_TO_BLENDER = Matrix(((1.0, 0.0, 0.0),
                           (0.0, 0.0, -1.0),
                           (0.0, 1.0, 0.0)))
 
+@dataclass(frozen=True)
+class HeadFrame:
+    origin: Vector
+    rotation: Matrix
+    scale: float
 
+@dataclass(frozen=True)
+class SourcePose:
+    local: dict
+    origin: Vector
+    scale: float
+    head_rotation: Matrix
+
+
+#ok
 def landmark_point(landmarks, idx, aspect):
     """Landmark in coordinate isotrope per evitare che un movimento orizzontale
     e uno verticale della stessa lunghezza reale diano numeri diversi a causa
@@ -31,9 +47,10 @@ def landmark_point(landmarks, idx, aspect):
     lm = landmarks[idx]
     return Vector((lm.x * aspect, lm.y, lm.z * aspect))
 
-
-def build_head_frame(landmarks, aspect):
+#ok
+def build_head_frame(landmarks, aspect: float) -> HeadFrame | None:
     """Costruisce il sistema di riferimento della testa."""
+    """Make the head frame."""
     p_right = landmark_point(landmarks, LM_SIDE_R, aspect)
     p_left = landmark_point(landmarks, LM_SIDE_L, aspect)
     p_top = landmark_point(landmarks, LM_FOREHEAD, aspect)
@@ -41,37 +58,47 @@ def build_head_frame(landmarks, aspect):
 
     side = p_left - p_right
     scale = side.length
+
     if scale < 1e-6:
         return None
-
+    
     axis_l = side / scale
+    #forward vec
     up_raw = p_top - origin
+    axis_f = axis_l.cross(up_raw)
 
-    axis_f = axis_l.cross(up_raw) 
     if axis_f.length < 1e-6:
         return None
+
     axis_f.normalize()
-
+    #up vec
     axis_u = axis_f.cross(axis_l)
-
+    #rotation matrix
     rot = Matrix((axis_l, axis_u, axis_f)).transposed()
-    return origin, rot, scale
 
-
-def to_head_local(landmarks, indices, origin, rot, scale, aspect):
+    head_frame = HeadFrame(origin=origin, rotation=rot, scale=scale)
+    return head_frame
+#ok
+#modified: we now pass frame
+def to_head_local(landmarks, frame: HeadFrame, indices, aspect: float = 1.0):
     """Porta i landmark richiesti nel siste. di rif. testa-locale normalizzati"""
-    rot_inv = rot.transposed()
+    """landmarks with respect the frame orthonormal base"""
+    rot_inv = frame.rotation.transposed()
     return {
-        idx: (rot_inv @ (landmark_point(landmarks, idx, aspect) - origin)) / scale
+        idx: (rot_inv @ (landmark_point(landmarks, idx, aspect) - frame.origin)) / frame.scale
         for idx in indices
     }
 
+#added
+def relative_rotation(current, neutral):
+    return current @ neutral.transposed()
+
 
 def mirrored_bone_name(name):
-    if name.endswith("_L"):
-        return name[:-2] + "_R"
-    if name.endswith("_R"):
-        return name[:-2] + "_L"
+    if name.endswith(".L"):
+        return name[:-2] + ".R"
+    if name.endswith(".R"):
+        return name[:-2] + ".L"
     return name
 
 
@@ -80,12 +107,11 @@ def mirror_rotation(rot):
     flip = Matrix(((-1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)))
     return flip @ rot @ flip
 
-
 def head_rotation_matrix(rot_neutral, rot_current):
     relative = rot_neutral.transposed() @ rot_current
     return HEAD_TO_BLENDER @ relative @ HEAD_TO_BLENDER.transposed()
 
-
+#ok
 def head_local_to_blender(vec, mirror_x=False):
     """Vettore dal frame testa-locale agli assi armatura."""
     out = HEAD_TO_BLENDER @ vec
@@ -110,15 +136,20 @@ def solve_unit_scale(armature, neutral_local, details=None):
     di conversione. Cosi' l'ampiezza e' corretta su qualunque modello, senza
     numeri da modificare a mano.
     """
-    names = [n for n in FACE_MAPPING if n in armature.pose.bones]
+    #to-do: replace it with a function
+    if armature.name in LANDMARKS_RIG_NAME:
+        mapping = LANDMARKERS_FACE_MAPPING
+    else: 
+        mapping = FACE_MAPPING
+    names = [n for n in mapping if n in armature.pose.bones]
     ratios = []
 
     for i, name_a in enumerate(names):
-        idx_a = FACE_MAPPING[name_a].landmark
+        idx_a = mapping[name_a].landmark
         if idx_a not in neutral_local:
             continue
         for name_b in names[i + 1:]:
-            idx_b = FACE_MAPPING[name_b].landmark
+            idx_b = mapping[name_b].landmark
             if idx_b not in neutral_local:
                 continue
 
@@ -126,6 +157,7 @@ def solve_unit_scale(armature, neutral_local, details=None):
             if mp_dist < MIN_PAIR_DIST:
                 continue
 
+            #to see
             anchor_a = bone_anchor(armature.pose.bones[name_a].bone)
             anchor_b = bone_anchor(armature.pose.bones[name_b].bone)
             rig_dist = (anchor_a - anchor_b).length
@@ -145,8 +177,13 @@ def solve_unit_scale(armature, neutral_local, details=None):
 
 def solve_bone_scales(armature, neutral_local, global_scale, details=None):
     """Scala di conversione per ogni osso, in unita' Blender per larghezza viso."""
+    if armature.name in LANDMARKS_RIG_NAME:
+        mapping = LANDMARKERS_FACE_MAPPING
+    else: 
+        mapping = FACE_MAPPING
+
     scales = {}
-    for name, data in FACE_MAPPING.items():
+    for name, data in mapping.items():
         ref = data.scale_ref
         scale = None
         info = {"ref": ref, "mp_dist": None, "rig_dist": None, "taglio": None}
@@ -154,8 +191,8 @@ def solve_bone_scales(armature, neutral_local, global_scale, details=None):
         if ref:
             bone_a, bone_b = ref
             if bone_a in armature.pose.bones and bone_b in armature.pose.bones:
-                idx_a = FACE_MAPPING[bone_a].landmark
-                idx_b = FACE_MAPPING[bone_b].landmark
+                idx_a = mapping[bone_a].landmark
+                idx_b = mapping[bone_b].landmark
                 if idx_a in neutral_local and idx_b in neutral_local:
                     mp_dist = (neutral_local[idx_a] - neutral_local[idx_b]).length
                     rig_dist = (bone_anchor(armature.pose.bones[bone_a].bone)
@@ -210,14 +247,33 @@ def solve_rotation_from_lever(pose_bone, tip_delta): # tip_delta e' lo spostamen
 
     return quat.to_matrix()
 
-
-def to_bone_space(pose_bone, vec):
+#ok
+def traslation_to_bone_space(pose_bone, vec):
     """Da spostamento in spazio armatura a bone.location."""
     rest = pose_bone.bone.matrix_local.to_3x3()
     return rest.inverted() @ vec
 
-
+#ok
 def rotation_to_bone_space(pose_bone, rot):
     """Stessa conversione della precedente, per una rotazione."""
     rest = pose_bone.bone.matrix_local.to_3x3()
     return rest.inverted() @ rot @ rest
+
+#added: compute a frame (orthonormal base for a given point)
+def make_frame(a, b, up):
+    x = (b - a).normalized()
+    z = x.cross(up)
+
+    if z.length < 1e-6:
+        return None
+
+    z.normalize()
+
+    y = z.cross(x)
+    y.normalize()
+
+    return Matrix((x, y, z)).transposed()
+
+#delta rotation is obtained as delta_rot = (current_frame @ neutral_frame.transposed()) 
+#where the transposed is the negative rotation captured at neutral pose, so compute the
+#current frame rotation is possible with a matrix product compute the rotation variation

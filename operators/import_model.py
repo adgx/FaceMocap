@@ -5,7 +5,7 @@ from bpy.props import StringProperty
 from mathutils import Vector
 from ..core import solver
 from ..core.config import ROTATION_BONES
-from ..core.rig import RIG_NAME, create_bones, find_rig
+from ..core.rig import BASE_RIG_NAME, create_bones, find_rig
 from ..core.weights import bind_by_islands, clean_loose_geometry
 
 # OPERATORE PER IMPORTARE IL MODELLO
@@ -227,7 +227,7 @@ class FACEMOCAP_OT_create_adaptive_armature(bpy.types.Operator):
             bpy.data.objects.remove(old_arm, do_unlink=True)
 
         arm_data = bpy.data.armatures.new(name="FaceMocap_Rig_Data")
-        arm_obj = bpy.data.objects.new(name=RIG_NAME, object_data=arm_data)
+        arm_obj = bpy.data.objects.new(name=BASE_RIG_NAME, object_data=arm_data)
         context.collection.objects.link(arm_obj)
         
         arm_obj.location = world_center
