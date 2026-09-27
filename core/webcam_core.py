@@ -231,7 +231,7 @@ class FaceTracker:
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image)
         self.detector.detect_async(image=mp_image, timestamp_ms=curr_ms_time())
         return image
-    #-> None | (list[NormalizedLandmark], float)
+    
     def read_landmarks(self) -> tuple[list[NormalizedLandmark], float] | None:
         """(landmark del primo viso, aspect ratio del frame), o None.
 
@@ -254,6 +254,27 @@ class FaceTracker:
         else:
             if not FaceTracker.result.face_landmarks:
                 return None
+            
+        if self.show_preview:
+            
+            annotated_image = draw_landmarks_on_image(image, FaceTracker.result)
+            cv2.imshow(WINDOW_NAME, annotated_image)
+            self._window_open = True
+            cv2.waitKey(1)
+
+            try:
+                if cv2.getWindowProperty(WINDOW_NAME, cv2.WND_PROP_VISIBLE) < 1:
+                    self.show_preview = False
+                    self._window_open = False
+            except cv2.error:
+                self.show_preview = False
+                self._window_open = False
+                
+        elif self._window_open:
+            cv2.destroyAllWindows()
+            for _ in range(5):
+                cv2.waitKey(1)
+            self._window_open = False
 
         height, width = image.shape[:2]
         aspect = width / height if height else 1.0

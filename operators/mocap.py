@@ -124,7 +124,7 @@ class FACEMOCAP_OT_validate(bpy.types.Operator):
     def execute(self, context) -> set[Literal['RUNNING_MODAL'] | Literal['CANCELLED'] | Literal['FINISHED'] | Literal['PASS_THROUGH'] | Literal['INTERFACE']]:
         """Check whether the target rig has all target bones specified in the mapping"""
         settings = (context.scene.facemocap)
-        target = rig.find_rig(context, settings.target_rig_name, target)
+        target = rig.find_rig(context, settings.target_rig_name)
 
         if target is None:
             self.report({"ERROR"}, "Target rig not found")
