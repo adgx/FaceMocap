@@ -337,7 +337,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         """Spostamento della testa nello spazio, in unita' armatura."""
         #diviso per la scala corrente quindi il risultato e' "quante larghezze di
         # viso si e' spostata la testa", quindi indipendente dalla distanza.
-        offset = (origin - selfretarget.retarget._neutral_origin) / scale
+        offset = (origin - self.retarget._neutral_origin) / scale
 
         depth = (self.retarget._neutral_scale / scale - 1.0) * config.HEAD_DEPTH_GAIN
 
@@ -454,7 +454,7 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
         #if base rig is found so use it for the motion capture and avoid the advance motion capture 
         self._rig = find_rig(context)
         if self._rig:
-            FACEMOCAP_OT_start_capture.PIANO_OSSA = _piano_ossa(self._rig)
+            FACEMOCAP_OT_start_capture.PIANO_OSSA = _piano_ossa()
             self._base_mocap = True
         else:
             self._rig = find_rig(context, self.settings.source_rig_name)

@@ -15,7 +15,7 @@ def find_rig(context=None, name_rig: str =""):
 
     if not name_rig.__len__():
         obj = bpy.data.objects.get(BASE_RIG_NAME)
-        if (obj is None) or obj.type == "ARMATURE":
+        if (obj is None) or obj.type != "ARMATURE":
                 return None
         return obj
 
