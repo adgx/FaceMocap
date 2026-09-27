@@ -75,7 +75,6 @@ PIANO_OSSA = _piano_ossa()
 ####################################################
 #               Operators Classes                  #
 ####################################################
-#added
 class FACEMOCAP_OT_initialize(bpy.types.Operator):
     """Loads the default mapping"""
     bl_idname = "facemocap.initialize"
@@ -87,7 +86,6 @@ class FACEMOCAP_OT_initialize(bpy.types.Operator):
 
         return {"FINISHED"}
 
-#To-do: review
 class FACEMOCAP_OT_reset_pose(bpy.types.Operator):
     """Riporta l'armatura alla rest pose
        Reset pose to the default
@@ -117,7 +115,7 @@ class FACEMOCAP_OT_reset_pose(bpy.types.Operator):
 
         reset_rig_pose(rig)
         return {'FINISHED'}
-#added
+
 class FACEMOCAP_OT_validate(bpy.types.Operator):
     """Checks whether the mapping is valid for motion capture and applies it"""
     bl_idname = "facemocap.validate"
@@ -163,20 +161,17 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
     _area = None
     _rig = None
     _base_mocap = False
-    #to-do move on retarget 
     _source_rig = None
     _target_rig = None
     _track_idx = TRACKED_INDICES
     _landmark_maps = LANDMARKS_MAP
     retarget = RetargetSolver()
 
-    #added
     def configure(self, source_rig, target_rig, mappings):
         self.source_rig = source_rig
         self.target_rig = target_rig
         self.mappings = mappings
 
-    #added
     def solve_source(self, landmarks, context: bpy.types.Context):
         settings = (context.scene.facemocap)
         frame = solver.build_head_frame(landmarks, aspect=settings.aspect_ratio)
@@ -204,7 +199,6 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             head_rotation=frame.rotation
         )
 
-    #added
     def apply_target(self, target_pose):
         if self._target_rig is None:
             return
@@ -437,7 +431,6 @@ class FACEMOCAP_OT_start_capture(bpy.types.Operator):
             else:
                 target_pose = self.retarget.solve(self._rig, source_pose, self.mappings, self.settings.smoothing, self.settings.mirror_x)
                 self.apply_target(target_pose)
-        #to see
         if self._area:
             self._area.tag_redraw()
 

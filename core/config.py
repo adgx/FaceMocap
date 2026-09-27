@@ -30,7 +30,7 @@ class LandmarkBoneMap:
     motion_mode: MotionMode = MotionMode.LANDMARK
     rot_landmarks: tuple[int, ...] = ()
 
-#added: data structure for the mapping in runtime
+#data structure for the mapping in runtime
 @dataclass(frozen=True)
 class MappingRuntime:
     role: str
@@ -41,7 +41,7 @@ class MappingRuntime:
     enable: bool = True
     axis_mask: tuple[bool, bool, bool] = (True, True, True)
     
-#added: data structure that allows us to create a mapping between the source skeleton 
+#data structure that allows us to create a mapping between the source skeleton 
 # and the target skeleton
 @dataclass(frozen=True)
 class RetargetMap:
@@ -51,6 +51,75 @@ class RetargetMap:
     gain: float = 1.0
     enable: bool = True
     axis_mask: tuple[bool, bool, bool] = (True, True, True)
+
+#Target rig
+    #Deformation bones = 5
+    #Master bones = 2
+    #Control bones = 14
+    #Target bones = 2
+    #Parent bones = 4
+    #Total bones to control = 27
+
+    ##################################################################
+    #                      Deformation bones                         #
+    ##################################################################
+
+    #Neck:
+    #DEF-Neck2 from laryngeal prominance to the base of jaw (only rotation)
+    #Head:
+    #DEF-Head (only rotation)
+    #Jaw:
+    #DEF-Jaw at the base of ears (only rotation)
+    #Nose:
+    #DEF-Nostril.L at the nostril of the nose (only translation)
+    #DEF-Nostril.R at the nostril of the nose (only translation)
+
+    ##################################################################
+    #                      Master bones                              #
+    ##################################################################
+    
+    #Jawline:
+    #MSTR-Jawline.L -> at the center between the three jawline def bones (only translation)
+    #MSTR-Jawline.R -> at the center between the three jawline def bones (only translation)
+
+    ##################################################################
+    #                      Control bones                             #
+    ##################################################################
+    
+    #Lips:
+    #CLT-Lip_main_upp place it on the upper center of the lip loop (only translation)
+    #CLT-Lip_local_upp.L is a controller between the  main and the conner  (only translation)
+    #CLT-Lip_corn.L place it on the left corner of the lip loop (only translation)
+    #CLT-Lip_local_upp.R is a controller between the  main and the conner (only translation)
+    #CLT-Lip_corn.R place it on the left corner of the lip loop (only translation)
+    #CLT-Lip_local_low.R is a controller between the  main and the conner (only translation)
+    #CLT-Lip_main_low place it on the lower center of the lip loop (only translation)
+    #CLT-Lip_local_low.L is a controller between the  main and the conner (only translation)
+    #Brow:
+    #CTL-Brow_in.L  controller for the most inner part of brow (only translation)
+    #CTL-Brow_mid.L controller for the midle part of brow  (only translation)
+    #CTL-Brow_out.L controller for the most outer part of brow (only translation)
+    #CTL-Brow_in.R  controller for the most inner part of brow (only translation)
+    #CTL-Brow_mid.R controller for the midle part of brow  (only translation)
+    #CTL-Brow_out.R controller for the most outer part of brow (only translation)
+     
+    ##################################################################
+    #                      Target bones                              #
+    ##################################################################
+    
+    #Eye:
+    #TGT-Eye.L used to control the eye direction (only translation)
+    #TGT-Eye.R used to control the eye direction (only translation)
+
+    ##################################################################
+    #                      Parent bones                              #
+    ##################################################################
+    
+    #Eyelid:
+    #P-Eyelid_upp.L used to control the upper eyelid position (only translation)
+    #P-Eyelid_upp.R used to control the upper eyelid position (only translation)
+    #P-Eyelid_low.L used to control the lower eyelid position (only translation)
+    #P-Eyelid_low.R used to control the lower eyelid position (only translation) 
 
 #mapping between landmarks and target bones 
 #the dir key is the role 
@@ -392,77 +461,6 @@ _LANDMARKS_BONES_LUT = {
 
 }
 
-#destination rig
-_ADVANCE_RIG_BONES_LUT = {
-    #Deformation bones = 5
-    #Master bones = 2
-    #Control bones = 14
-    #Target bones = 2
-    #Parent bones = 4
-    #Total bones to control = 27
-
-    ##################################################################
-    #                      Deformation bones                         #
-    ##################################################################
-
-    #Neck:
-    #DEF-Neck2 from laryngeal prominance to the base of jaw (only rotation)
-    #Head:
-    #DEF-Head (only rotation)
-    #Jaw:
-    #DEF-Jaw at the base of ears (only rotation)
-    #Nose:
-    #DEF-Nostril.L at the nostril of the nose (only translation)
-    #DEF-Nostril.R at the nostril of the nose (only translation)
-
-    ##################################################################
-    #                      Master bones                              #
-    ##################################################################
-    
-    #Jawline:
-    #MSTR-Jawline.L -> at the center between the three jawline def bones (only translation)
-    #MSTR-Jawline.R -> at the center between the three jawline def bones (only translation)
-
-    ##################################################################
-    #                      Control bones                             #
-    ##################################################################
-    
-    #Lips:
-    #CLT-Lip_main_upp place it on the upper center of the lip loop (only translation)
-    #CLT-Lip_local_upp.L is a controller between the  main and the conner  (only translation)
-    #CLT-Lip_corn.L place it on the left corner of the lip loop (only translation)
-    #CLT-Lip_local_upp.R is a controller between the  main and the conner (only translation)
-    #CLT-Lip_corn.R place it on the left corner of the lip loop (only translation)
-    #CLT-Lip_local_low.R is a controller between the  main and the conner (only translation)
-    #CLT-Lip_main_low place it on the lower center of the lip loop (only translation)
-    #CLT-Lip_local_low.L is a controller between the  main and the conner (only translation)
-    #Brow:
-    #CTL-Brow_in.L  controller for the most inner part of brow (only translation)
-    #CTL-Brow_mid.L controller for the midle part of brow  (only translation)
-    #CTL-Brow_out.L controller for the most outer part of brow (only translation)
-    #CTL-Brow_in.R  controller for the most inner part of brow (only translation)
-    #CTL-Brow_mid.R controller for the midle part of brow  (only translation)
-    #CTL-Brow_out.R controller for the most outer part of brow (only translation)
-     
-    ##################################################################
-    #                      Target bones                              #
-    ##################################################################
-    
-    #Eye:
-    #TGT-Eye.L used to control the eye direction (only translation)
-    #TGT-Eye.R used to control the eye direction (only translation)
-
-    ##################################################################
-    #                      Parent bones                              #
-    ##################################################################
-    
-    #Eyelid:
-    #P-Eyelid_upp.L used to control the upper eyelid position (only translation)
-    #P-Eyelid_upp.R used to control the upper eyelid position (only translation)
-    #P-Eyelid_low.L used to control the lower eyelid position (only translation)
-    #P-Eyelid_low.R used to control the lower eyelid position (only translation) 
-}
-
 FACE_MAPPING = {nome: BoneMap(*riga) for nome, riga in _TABELLA.items()}
 LANDMARKERS_FACE_MAPPING = {nome: BoneMap(*riga) for nome, riga in _LANDMARKS_BONES_LUT.items()}
 #ossa per la rotazione della mandibola con centro di rotazione all'altezza delle orecchie
@@ -470,13 +468,10 @@ ROTATION_BONES = {
     "Jaw": ((0.0, 0.30, 0.05), (0.0, -0.15, -0.55)),
 }
 
-
-
 LM_SIDE_R   = 234   # bordo guancia destra del soggetto
 LM_SIDE_L   = 454   # bordo guancia sinistra del soggetto
 LM_FOREHEAD = 10    # centro fronte
 LM_NASION   = 168   # radice del naso, tra gli occhi
-
 
 MIN_PAIR_DIST = 0.01
 
@@ -490,10 +485,8 @@ SMOOTHING   = 0.6   # alpha del filtro anti-jitter
 
 CALIBRATION_FRAMES = 30
 HEAD_DEPTH_GAIN = 1.0
-
 MIN_FEATURE_SCALE = 0.35
 MAX_FEATURE_SCALE = 4.0
-
 MIN_LEVER_DOWN = 0.3
 
 #apertura massima della mandibola in gradi

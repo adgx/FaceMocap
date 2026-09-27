@@ -78,8 +78,7 @@ def build_head_frame(landmarks, aspect: float) -> HeadFrame | None:
 
     head_frame = HeadFrame(origin=origin, rotation=rot, scale=scale)
     return head_frame
-#ok
-#modified: we now pass frame
+
 def to_head_local(landmarks, frame: HeadFrame, indices, aspect: float = 1.0):
     """Porta i landmark richiesti nel siste. di rif. testa-locale normalizzati"""
     """landmarks with respect the frame orthonormal base"""
@@ -89,7 +88,6 @@ def to_head_local(landmarks, frame: HeadFrame, indices, aspect: float = 1.0):
         for idx in indices
     }
 
-#added
 def relative_rotation(current, neutral):
     return current @ neutral.transposed()
 
@@ -111,7 +109,6 @@ def head_rotation_matrix(rot_neutral, rot_current):
     relative = rot_neutral.transposed() @ rot_current
     return HEAD_TO_BLENDER @ relative @ HEAD_TO_BLENDER.transposed()
 
-#ok
 def head_local_to_blender(vec, mirror_x=False):
     """Vettore dal frame testa-locale agli assi armatura."""
     out = HEAD_TO_BLENDER @ vec
@@ -247,19 +244,16 @@ def solve_rotation_from_lever(pose_bone, tip_delta): # tip_delta e' lo spostamen
 
     return quat.to_matrix()
 
-#ok
 def traslation_to_bone_space(pose_bone, vec):
     """Da spostamento in spazio armatura a bone.location."""
     rest = pose_bone.bone.matrix_local.to_3x3()
     return rest.inverted() @ vec
 
-#ok
 def rotation_to_bone_space(pose_bone, rot):
     """Stessa conversione della precedente, per una rotazione."""
     rest = pose_bone.bone.matrix_local.to_3x3()
     return rest.inverted() @ rot @ rest
 
-#added: compute a frame (orthonormal base for a given point)
 def make_frame(a, b, up):
     x = (b - a).normalized()
     z = x.cross(up)
