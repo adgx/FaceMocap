@@ -32,12 +32,17 @@ class FACEMOCAP_PG_settings(bpy.types.PropertyGroup):
     target_rig_name: StringProperty(name="Target Rig", description="Target armature to which the motion capture data is applied", default=TARGET_RIG_NAME)
     camera_id: IntProperty(name="Camera ID", description="Specifies the ID of the camera to use",default=0, min=0, max=20)
     smoothing: FloatProperty(name="Smoothing", description="Defines the alpha value of the anti-jitter filter",default=config.SMOOTHING, min=0.0, max=0.99)
-    #we could add the aspect ratio
     mirror_x: BoolProperty(
         name="Mirror X axis",
         #description="Attiva se il modello si muove al contrario su sinistra/destra",
         description="Enabled if left/right movement is reversed",
         default=False,
+    )
+    show_preview: bpy.props.BoolProperty(
+        name="Show Video Webcam",
+        #description="Apre la finestra pop-up con il video e i landmark",
+        description="Opens a window  showing the video feed and landmarks",
+        default=True
     )
     mappings: CollectionProperty(type=FACEMOCAP_PG_mapping)
     mapping_index: IntProperty(default=0)

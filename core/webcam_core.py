@@ -181,12 +181,10 @@ def result_cb(result: FaceLandmarkerResult, output_image: mp.Image, timestamp_ms
     print('face landmarker result: {}'.format(result))
     FaceTracker.result = result
 
-mp_drawing = mp.solutions.drawing_utils
-mp_face_mesh = mp.solutions.face_mesh
-WINDOW_NAME = 'FaceMocap - Webcam Preview (Premi ESC su Blender)'
+WINDOW_NAME = 'FaceMocap - Webcam Preview (Press ESC in Blender)'
 
 class FaceTracker:
-<<<<<<< HEAD
+    
     result: FaceLandmarkerResult = None
 
     def __init__(self, show_preview=True):
@@ -205,16 +203,6 @@ class FaceTracker:
                                                 num_faces=1,
                                                 result_callback=result_cb)
         self.detector = vision.FaceLandmarker.create_from_options(self.options)
-        self.cap = None
-        self.show_preview = show_preview
-        self._window_open = False
-=======
-    
-    result: FaceLandmarkerResult = None
->>>>>>> origin/dev-adgx
-
-    def __init__(self):
-        #set the model's path
         
         #capture data
         self.cap = None
@@ -255,8 +243,6 @@ class FaceTracker:
         if not success:
             return None
 
-<<<<<<< HEAD
-        # MediaPipe vuole immagini in RGB per il calcolo
         # MediaPipe vuole immagini in RGB
         #results = self.face_mesh.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
         
@@ -264,53 +250,6 @@ class FaceTracker:
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image)
         self.detector.detect_async(image=mp_image, timestamp_ms=curr_ms_time())
         if FaceTracker.result is None:
-            return None
-        else:
-            if not FaceTracker.result.face_landmarks:
-                    return None
-        
-        if self.show_preview:
-            if results.multi_face_landmarks:
-                for face_landmarks in results.multi_face_landmarks:
-                    # Disegna la maschera verde sull'immagine originale
-                    mp_drawing.draw_landmarks(
-                        image=image,
-                        landmark_list=face_landmarks,
-                        connections=mp_face_mesh.FACEMESH_TESSELATION,
-                        landmark_drawing_spec=None,
-                        connection_drawing_spec=mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=1, circle_radius=1)
-                    )
-            
-            preview_image = cv2.flip(image, 1)
-            cv2.imshow(WINDOW_NAME, preview_image)
-            self._window_open = True
-            cv2.waitKey(1)
-
-            try:
-                if cv2.getWindowProperty(WINDOW_NAME, cv2.WND_PROP_VISIBLE) < 1:
-                    self.show_preview = False
-                    self._window_open = False
-            except cv2.error:
-                self.show_preview = False
-                self._window_open = False
-                
-        elif self._window_open:
-            cv2.destroyAllWindows()
-            for _ in range(5):
-                cv2.waitKey(1)
-            self._window_open = False
-
-
-        if not results.multi_face_landmarks:
-=======
-        # MediaPipe vuole immagini in RGB
-        #results = self.face_mesh.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-        
-        #Directly use of the face landmark model
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image)
-        self.detector.detect_async(image=mp_image, timestamp_ms=curr_ms_time())
-        if FaceTracker.result is None:
->>>>>>> origin/dev-adgx
             return None
         else:
             if not FaceTracker.result.face_landmarks:
@@ -320,18 +259,6 @@ class FaceTracker:
         aspect = width / height if height else 1.0
         return FaceTracker.result.face_landmarks[0], aspect
 
-<<<<<<< HEAD
-    def stop(self):
-        """Rilascia la webcam e chiude eventuali finestre."""
-        if self.cap:
-            self.cap.release()
-            self.cap = None
-            
-        if getattr(self, '_window_open', False):
-            cv2.destroyAllWindows()
-            cv2.waitKey(1)
-            self._window_open = False
-=======
     def stop(self) -> None:
         """Rilascia la webcam e chiude le finestre."""
         if self.cap:
@@ -367,4 +294,3 @@ if __name__ == "__main__":
                 break
                 
         tracker.stop()
->>>>>>> origin/dev-adgx
