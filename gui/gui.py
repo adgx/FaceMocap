@@ -90,7 +90,11 @@ class FACEMOCAP_PT_main_panel(Panel):
         box_mocap.label(text="Campture", icon='ANIM')
         box_mocap.prop(settings, "camera_id")
         box_mocap.prop(settings, "mirror_x")
-        box_mocap.prop(settings, "smoothing")
+        #box_mocap.prop(settings, "smoothing")
+        box_mocap.label(text="1Euro Filter Tuning:")
+        row_filter = box_mocap.row(align=True)
+        row_filter.prop(settings, "min_cutoff", text="Cutoff")
+        row_filter.prop(settings, "beta", text="Beta")
 
         box_mocap.prop(settings, "show_preview")
 

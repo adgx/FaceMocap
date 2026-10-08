@@ -31,7 +31,20 @@ class FACEMOCAP_PG_settings(bpy.types.PropertyGroup):
     source_rig_name: StringProperty(name="Source Rig", description="Armature representing the motion capture data", default=LANDMARKS_RIG_NAME)
     target_rig_name: StringProperty(name="Target Rig", description="Target armature to which the motion capture data is applied", default=TARGET_RIG_NAME)
     camera_id: IntProperty(name="Camera ID", description="Specifies the ID of the camera to use",default=0, min=0, max=20)
-    smoothing: FloatProperty(name="Smoothing", description="Defines the alpha value of the anti-jitter filter",default=config.SMOOTHING, min=0.0, max=0.99)
+    
+    min_cutoff: FloatProperty(
+        name="Min Cutoff (Tremor)", 
+        description="Low values reduce tremor when still, but increase lag",
+        default=config.ONE_EURO_MIN_CUTOFF, 
+        min=0.01, max=5.0
+    )
+    beta: FloatProperty(
+        name="Beta (Speed)", 
+        description="High values reduce lag during fast movements, but increase tremor",
+        default=config.ONE_EURO_BETA,
+        min=0.0, max=50.0, soft_max=20.0
+    )
+
     mirror_x: BoolProperty(
         name="Mirror X axis",
         #description="Attiva se il modello si muove al contrario su sinistra/destra",
