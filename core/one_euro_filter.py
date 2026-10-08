@@ -81,13 +81,11 @@ class OneEuroFilterQuaternion:
         if dt <= 0.0:
             return self.q_prev.copy()
 
-        # Assicura il percorso di rotazione più breve (gestione della doppia copertura)
         q_target = q.copy()
         if self.q_prev.dot(q_target) < 0.0:
             q_target.negate()
 
-        # stima della velocità angolare come vettore (asse * rad/s): a differenza
-        # del solo modulo, il rumore in direzioni opposte si compensa nella media
+        # stima della velocità angolare come vettore (asse * rad/s)
         diff = self.q_prev.rotation_difference(q_target)
         axis, angle = diff.to_axis_angle()
         if angle > math.pi:

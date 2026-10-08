@@ -3,10 +3,10 @@ import os
 from bpy_extras.io_utils import ImportHelper
 from bpy.props import StringProperty
 from mathutils import Vector
-from ..core import solver
-from ..core.config import ROTATION_BONES
+from ..core import head_measure, solver
+from ..core.config import ROTATION_BONES, FACE_MAPPING, BODY_BONES, NECK_HEAD_SHAPE
 from ..core.rig import BASE_RIG_NAME, create_bones, find_rig
-from ..core.weights import bind_by_islands, clean_loose_geometry
+from ..core.weights import bind_by_islands, clean_loose_geometry, limit_body_weights
 
 # OPERATORE PER IMPORTARE IL MODELLO
 class FACEMOCAP_OT_import_custom_model(bpy.types.Operator, ImportHelper):
@@ -90,6 +90,7 @@ class FACEMOCAP_OT_bind_model(bpy.types.Operator):
             avvisi.append("rimossi %d vertici sciolti" % n_sciolti)
 
         avvisi += bind_by_islands(mesh_obj, arm_obj, context)
+        avvisi += limit_body_weights(mesh_obj, arm_obj)
 
         # parent_set aggiunge un modificatore anche quando la mesh e' gia'
         # imparentata: senza questo, un secondo click deforma due volte.
@@ -205,7 +206,7 @@ def _empty_deform_groups(mesh_obj, arm_obj):
 
 # OPERATORE PER L'ARMATURA ADATTIVA
 class FACEMOCAP_OT_create_adaptive_armature(bpy.types.Operator):
-    """Genera un'armatura proporzionata. RICHIEDE POSIZIONAMENTO MANUALE IN EDIT MODE prima del collegamento."""
+    """Genera l'armatura proporzionata al modello selezionato. Controlla le ossa in Edit Mode se il viso ha proporzioni diverse dal modello di riferimento."""
     bl_idname = "facemocap.create_adaptive_armature"
     bl_label = "Genera Armatura su Modello"
 
@@ -215,12 +216,11 @@ class FACEMOCAP_OT_create_adaptive_armature(bpy.types.Operator):
             self.report({'ERROR'}, "Seleziona prima il tuo modello 3D!")
             return {'CANCELLED'}
 
-        dims = mesh_obj.dimensions
-        
-        local_bbox_center = sum((Vector(b) for b in mesh_obj.bound_box), Vector()) / 8
-        world_center = mesh_obj.matrix_world @ local_bbox_center
-        
-        world_center.z += dims.z * 0.15 
+        # Misure in coordinate mondo: con un modello importato ruotato (Y-up)
+        # mesh_obj.dimensions scambia altezza e profondita'. Se c'e' il collo
+        # il template si adatta alla testa misurata, non al bbox del busto.
+        misura = head_measure.misura_modello(mesh_obj, context.scene.objects)
+        origine = misura.mappa.to_world((0.0, 0.0, 0.0))
 
         old_arm = find_rig()
         if old_arm:
@@ -230,30 +230,80 @@ class FACEMOCAP_OT_create_adaptive_armature(bpy.types.Operator):
         arm_obj = bpy.data.objects.new(name=BASE_RIG_NAME, object_data=arm_data)
         context.collection.objects.link(arm_obj)
         
-        arm_obj.location = world_center
-        
+        arm_obj.location = origine
+
         context.view_layer.objects.active = arm_obj
         bpy.ops.object.mode_set(mode='EDIT')
 
-        # Le posizioni di FACE_MAPPING sono normalizzate in [-1, 1] sulle
-        # semi-dimensioni: qui diventano le misure di QUESTO modello.
+        # Le posizioni di FACE_MAPPING sono nelle coordinate del template: qui
+        # diventano le misure di QUESTO modello, relative all'origine del rig.
         def adapt(pos):
-            return (pos[0] * dims.x * 0.5,
-                    pos[1] * dims.y * 0.5,
-                    pos[2] * dims.z * 0.5)
+            return misura.mappa.to_world(pos) - origine
 
         create_bones(
-            arm_data.edit_bones,
+            arm_data,
             adapt=adapt,
-            tail_length=lambda name: dims.z * 0.1,
+            tail_length=lambda name: misura.altezza * 0.1,
         )
+        if misura.collo_base is not None:
+            _aggiungi_collo(arm_data, misura, adapt, origine)
 
         bpy.ops.object.mode_set(mode='OBJECT')
         arm_obj.show_in_front = True
+
+        # Ancora = dove sta il landmark dell'osso. Per Head e Jaw non coincide
+        # con la testa (base del collo, perno della mandibola) e il solver la
+        # usa per misurare la scala del rig.
+        for name, data in FACE_MAPPING.items():
+            bone = arm_data.bones.get(name)
+            if bone is not None:
+                bone["fm_anchor"] = list(adapt(data.position))
         
         bpy.ops.object.select_all(action='DESELECT')
         arm_obj.select_set(True)
         context.view_layer.objects.active = arm_obj
-        
-        self.report({'INFO'}, "Armatura generata! ORA ENTRA IN EDIT MODE E POSIZIONA LE OSSA.")
+
+        print("\n".join(["FaceMocap - armatura generata su %s" % mesh_obj.name]
+                        + ["  " + r for r in misura.righe()]), flush=True)
+
+        if misura.modo == "testa":
+            testo = ("Armatura generata sulla testa (collo riconosciuto, ossa %s). "
+                     % ", ".join(n for n in BODY_BONES if n in arm_data.bones))
+        else:
+            testo = "Armatura generata sul bbox del modello. "
+        testo += "Controlla le ossa, poi premi Collega Manualmente. Misure in console."
+        self.report({'WARNING'} if misura.note and misura.modo == "testa" else {'INFO'}, testo)
         return {'FINISHED'}
+
+
+def _aggiungi_collo(arm_data, misura, adapt, origine):
+    """Neck dalla base del collo alla base del cranio, Head da li' in su.
+
+    Head ruota attorno alla base del cranio invece che attorno al fondo del
+    bbox, cioe' le spalle. La rotazione si divide lungo la catena: Chest ne
+    prende poca e porta con se' l'inizio delle spalle, Neck piega il collo,
+    Head fa il resto (NECK_ROT_SHARE, CHEST_ROT_SHARE).
+    L'armatura dev'essere in Edit Mode.
+    """
+    edit_bones = arm_data.edit_bones
+    head = edit_bones["Head"]
+    testa_head = adapt(NECK_HEAD_SHAPE[0])
+    collo_base = Vector(misura.collo_base) - origine
+    if testa_head.z <= collo_base.z:
+        misura.note.append("base del cranio sotto la base del collo: Neck non creato")
+        return
+
+    head.head = testa_head
+    head.tail = adapt(NECK_HEAD_SHAPE[1])
+
+    neck = edit_bones.new("Neck")
+    neck.head = collo_base
+    neck.tail = testa_head
+    head.parent = neck
+    head.use_connect = False
+
+    if misura.torace_base is not None:
+        chest = edit_bones.new("Chest")
+        chest.head = Vector(misura.torace_base) - origine
+        chest.tail = collo_base
+        neck.parent = chest

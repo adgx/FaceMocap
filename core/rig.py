@@ -6,7 +6,7 @@ BASE_RIG_NAME = "RIG-FaceMocap_base"
 TARGET_RIG_NAME = "RIG-FaceMocap_advanced_face"
 LANDMARKS_RIG_NAME = "RIG-FaceMocap_Landmarkers"
 
-from .config import FACE_MAPPING, ROTATION_BONES, LANDMARKERS_FACE_MAPPING
+from .config import FACE_MAPPING, ROTATION_BONES, LANDMARKERS_FACE_MAPPING, BONE_SHAPES, NON_DEFORM_BONES
 from .solver import traslation_to_bone_space
 
 #it could make sense to use a distintion between the sorce, and target rig   
@@ -34,10 +34,12 @@ def create_bones(arm_data, adapt, tail_length, advance: bool = False):
 
     for name, data in FACE_MAPPING.items():
         bone = arm_data.edit_bones.new(name)
+        bone.use_deform = name not in NON_DEFORM_BONES
 
-        if name in ROTATION_BONES:
-            # ossa dellan mandibola: testa sul perno, coda sul mento.
-            head_pos, tail_pos = ROTATION_BONES[name]
+        if name in BONE_SHAPES:
+            # geometria del rig di riferimento (per la mandibola: testa sul
+            # perno, coda sul mento)
+            head_pos, tail_pos = BONE_SHAPES[name]
             bone.head = adapt(head_pos)
             bone.tail = adapt(tail_pos)
             continue

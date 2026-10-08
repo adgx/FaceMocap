@@ -14,9 +14,10 @@ import statistics
 
 import bmesh
 import bpy
-from mathutils import Vector
+import numpy as np
+from mathutils import Matrix, Vector
 
-from ..core import config, solver
+from ..core import config, head_measure, solver
 from ..core.config import FACE_MAPPING
 from ..core.rig import BASE_RIG_NAME, find_rig
 # Si riusano gli helper del binder e non una copia: il report deve descrivere
@@ -260,7 +261,11 @@ def _frazione_attesa(nome):
     dati = config.FACE_MAPPING.get(nome)
     if dati is None:
         return None
-    return (dati.position[2] + 1.0) * 0.5
+    # nelle coordinate del generatore il mento e' la coda di Jaw e la cima
+    # della mesh sta a 1 - 2 * GENERATOR_Z_OFFSET
+    z_mento = config.BONE_SHAPES["Jaw"][1][2]
+    z_cima = 1.0 - 2.0 * config.GENERATOR_Z_OFFSET
+    return (dati.position[2] - z_mento) / (z_cima - z_mento)
 
 
 def _frazione_reale(osso, esito):
@@ -604,6 +609,264 @@ def stampa_tabella_scale(unit_scale, dett_unit, dett_scale):
     print("\n".join(righe), flush=True)
 
 
+def _sezione_altre_armature(righe, context, rig_base):
+    """Ossa di ogni altra armatura della scena, anche in coordinate normalizzate
+    come le usa 'Genera Armatura su Modello' (centro del bbox della mesh alzato
+    del 15% dell'altezza, diviso per le semi-dimensioni). Serve a trasformare
+    un rig fatto a mano in quello generato dal tasto."""
+    altre = [o for o in context.scene.objects
+             if o.type == 'ARMATURE' and o is not rig_base]
+    righe.append("")
+    righe.append("=" * 78)
+    righe.append("4. ALTRE ARMATURE DELLA SCENA")
+    righe.append("=" * 78)
+    if not altre:
+        righe.append("  nessuna")
+        return
+
+    for arm in altre:
+        righe.append("")
+        righe.append("[ARMATURA] %s" % arm.name)
+        righe.append("  matrix_world : loc %s  rot %s  scala %s"
+                     % (_vec(arm.matrix_world.to_translation()),
+                        _vec(arm.matrix_world.to_euler()),
+                        _vec(arm.matrix_world.to_scale())))
+        mesh_obj = _mesh_del_rig(context, arm)
+        centro = semi = None
+        if mesh_obj is None:
+            righe.append("  mesh legata  : nessuna (niente coordinate normalizzate)")
+        else:
+            dims = mesh_obj.dimensions
+            locale = sum((Vector(b) for b in mesh_obj.bound_box), Vector()) / 8
+            centro = mesh_obj.matrix_world @ locale
+            centro.z += dims.z * 0.15
+            semi = Vector((dims.x * 0.5, dims.y * 0.5, dims.z * 0.5))
+            righe.append("  mesh legata  : %s  dimensions %s  centro generatore %s"
+                         % (mesh_obj.name, _vec(dims), _vec(centro)))
+
+        pesi = {}
+        if mesh_obj is not None:
+            for vg in mesh_obj.vertex_groups:
+                pesi[vg.name] = 0
+            indici = {vg.index: vg.name for vg in mesh_obj.vertex_groups}
+            for v in mesh_obj.data.vertices:
+                for g in v.groups:
+                    if g.weight > 0.01 and g.group in indici:
+                        pesi[indici[g.group]] += 1
+
+        def norm(p_mondo):
+            d = p_mondo - centro
+            return tuple(round(d[i] / semi[i], 4) if semi[i] > 1e-9 else 0.0 for i in range(3))
+
+        normalizzate = []
+        for osso in arm.data.bones:
+            testa = arm.matrix_world @ osso.head_local
+            coda = arm.matrix_world @ osso.tail_local
+            righe.append("  [OSSO] %-18s parent %-14s deform %-2s connect %-2s roll %+.3f  vertici %s"
+                         % (osso.name, osso.parent.name if osso.parent else "-",
+                            "si" if osso.use_deform else "no",
+                            "si" if osso.use_connect else "no",
+                            _roll(osso), pesi.get(osso.name, "-")))
+            righe.append("      head mondo %s  tail mondo %s" % (_vec(testa), _vec(coda)))
+            if centro is not None:
+                normalizzate.append((osso.name, norm(testa), norm(coda),
+                                     osso.parent.name if osso.parent else None))
+
+        if normalizzate:
+            righe.append("  coordinate normalizzate (head, tail, parent):")
+            for nome, t, c, p in normalizzate:
+                righe.append("    %r: (%r, %r, %r)," % (nome, t, c, p))
+
+
+# --- profilo del modello per il riposizionamento -----------------------------
+#
+# Stessa misura di "Genera Armatura su Modello" (core/head_measure.py): con il
+# collo il template si normalizza sulla testa (mento, naso, occhi, cima), senza
+# sul bbox intero. Il report dice quale strada ha preso e perche', e stampa
+# profilo e ossa nelle coordinate del TEMPLATE, cosi' i numeri si confrontano
+# direttamente con _TABELLA e BONE_SHAPES e si possono incollare in config.py.
+#
+# Il profilo per fasce orizzontali e' il modo di verificare a occhio la misura:
+# il bordo anteriore della fascia e' il profilo del viso visto di lato, e il
+# punto in cui arretra di colpo sotto la bocca e' il mento.
+
+FASCE_PROFILO = 60
+
+# Mezza larghezza della fascia mediana, in frazione della larghezza della mesh.
+# Abbastanza stretta da non prendere le guance, abbastanza larga da trovare
+# vertici anche su una mesh low poly.
+TOLLERANZA_MEDIANA = 0.03
+
+
+def _mesh_di_riferimento(context, rig):
+    """(mesh, motivo): quella legata al rig, altrimenti la piu' grande."""
+    if rig is not None:
+        legata = _mesh_del_rig(context, rig)
+        if legata is not None:
+            return legata, "legata al rig"
+    candidate = [o for o in context.scene.objects
+                 if o.type == 'MESH' and len(o.data.vertices)]
+    if not candidate:
+        return None, ""
+    return (max(candidate, key=lambda o: o.dimensions.length),
+            "la piu' grande della scena (nessuna mesh legata al rig)")
+
+
+def _num(v):
+    return "%+.3f" % v if v is not None else "   -  "
+
+
+def _profilo_fasce(vn):
+    """Una riga per fascia, dall'alto in basso, con le misure del profilo."""
+    z_min, z_max = float(vn[:, 2].min()), float(vn[:, 2].max())
+    x_centro = (float(vn[:, 0].min()) + float(vn[:, 0].max())) * 0.5
+    larghezza = float(vn[:, 0].max()) - float(vn[:, 0].min())
+    mediana = np.abs(vn[:, 0] - x_centro) < TOLLERANZA_MEDIANA * larghezza
+    passo = (z_max - z_min) / FASCE_PROFILO
+
+    fasce = []
+    for i in range(FASCE_PROFILO):
+        alto = z_max - i * passo
+        basso = alto - passo
+        maschera = (vn[:, 2] <= alto) & (vn[:, 2] >= basso)
+        fascia = vn[maschera]
+        med = vn[maschera & mediana]
+        fasce.append({
+            "z": (alto + basso) * 0.5,
+            "n": len(fascia),
+            "n_med": len(med),
+            "x_min": float(fascia[:, 0].min()) if len(fascia) else None,
+            "x_max": float(fascia[:, 0].max()) if len(fascia) else None,
+            "y_avanti": float(fascia[:, 1].min()) if len(fascia) else None,
+            "y_dietro": float(fascia[:, 1].max()) if len(fascia) else None,
+            "ym_avanti": float(med[:, 1].min()) if len(med) else None,
+            "ym_dietro": float(med[:, 1].max()) if len(med) else None,
+        })
+    return fasce
+
+
+def _t(v):
+    return "(%.3f, %.3f, %.3f)" % tuple(v)
+
+
+def _forma_template(nome, rig):
+    """(head, tail) che il generatore darebbe all'osso, o None."""
+    if nome == "Head" and "Neck" in rig.data.bones:
+        return config.NECK_HEAD_SHAPE
+    return config.BONE_SHAPES.get(nome)
+
+
+def _sezione_profilo(righe, context, rig):
+    righe.append("")
+    righe.append("=" * 78)
+    righe.append("5. PROFILO DEL MODELLO E OSSA IN COORDINATE DEL TEMPLATE")
+    righe.append("=" * 78)
+
+    mesh_obj, motivo = _mesh_di_riferimento(context, rig)
+    if mesh_obj is None:
+        righe.append("  nessuna mesh da misurare")
+        return
+
+    mw = mesh_obj.matrix_world
+    righe.append("  mesh            : %s (%s)" % (mesh_obj.name, motivo))
+    righe.append("  mesh mondo      : loc %s  rot %s  scala %s"
+                 % (_vec(mw.to_translation()), _vec(mw.to_euler()), _vec(mw.to_scale())))
+    if rig is not None:
+        aw = rig.matrix_world
+        righe.append("  rig mondo       : loc %s  rot %s  scala %s"
+                     % (_vec(aw.to_translation()), _vec(aw.to_euler()), _vec(aw.to_scale())))
+
+    verts = head_measure.world_vertices(mesh_obj)
+    misura = head_measure.misura(verts, head_measure.rigid_islands(mesh_obj)
+                                 + head_measure.nearby_parts(mesh_obj, context.scene.objects))
+    mappa = misura.mappa
+    righe.append("")
+    righe.append("  misura del generatore (coordinate mondo):")
+    righe += ["    " + r for r in misura.righe()]
+    if rig is not None:
+        origine = mappa.to_world((0.0, 0.0, 0.0))
+        righe.append("    rig - origine attesa: %s  (0 se il rig non e' stato "
+                     "spostato dopo la generazione)"
+                     % _vec(rig.matrix_world.to_translation() - origine))
+
+    fasce = _profilo_fasce(mappa.from_world_array(verts))
+    righe.append("")
+    righe.append("  profilo per fasce in coordinate template (dall'alto; -Y = "
+                 "davanti; 'med' = fascia mediana |x| < %.0f%% larghezza)"
+                 % (TOLLERANZA_MEDIANA * 100))
+    righe.append("  sul template: mento z %+.3f, occhi z %+.3f, cima z %+.3f, "
+                 "punta naso y %+.3f"
+                 % (head_measure.T_MENTO_Z, head_measure.T_OCCHIO_Z,
+                    head_measure.T_CIMA_Z, head_measure.T_NASO_Y))
+    righe.append("  %7s %6s %5s | %7s %7s | %7s %7s | %7s %7s"
+                 % ("z", "vert", "med", "x_min", "x_max",
+                    "y_avant", "y_dietr", "ym_avan", "ym_diet"))
+    for f in fasce:
+        righe.append("  %+7.3f %6d %5d | %7s %7s | %7s %7s | %7s %7s"
+                     % (f["z"], f["n"], f["n_med"], _num(f["x_min"]), _num(f["x_max"]),
+                        _num(f["y_avanti"]), _num(f["y_dietro"]),
+                        _num(f["ym_avanti"]), _num(f["ym_dietro"])))
+
+    if rig is None:
+        return
+
+    # Le ossa: dove sono, dove le metterebbe il generatore, e se stanno dentro
+    # la mesh.
+    sonda = _sonda_superficie(mesh_obj, rig)
+    aw = rig.matrix_world
+
+    def tpl(p_armatura):
+        return mappa.from_world(aw @ p_armatura)
+
+    righe.append("")
+    righe.append("  ossa (coordinate template). D/F = testa dentro/fuori dal "
+                 "volume, dist = distanza dalla superficie")
+    for osso in rig.data.bones:
+        ancora = tpl(solver.bone_anchor(osso))
+        esito = sonda(osso.head_local) if sonda else None
+        stato = "?" if esito is None else ("D" if esito[1] else "F")
+        dist = "-" if esito is None else "%.4f" % esito[2]
+        righe.append("  [OSSO] %-16s %s dist %s" % (osso.name, stato, dist))
+        righe.append("    head %s  tail %s  ancora %s"
+                     % (_t(tpl(osso.head_local)), _t(tpl(osso.tail_local)), _t(ancora)))
+        forma = _forma_template(osso.name, rig)
+        dati = config.FACE_MAPPING.get(osso.name)
+        if forma is not None and dati is not None:
+            righe.append("    template head %s  tail %s  ancora %s"
+                         % (_t(forma[0]), _t(forma[1]), _t(dati.position)))
+            righe.append("    scarto ancora dal template %s"
+                         % _t(ancora - Vector(dati.position)))
+
+    # Pronte da incollare in BONE_SHAPES / _TABELLA se le ossa sono state
+    # sistemate a mano su questo modello. Valgono con la stessa misura: su un
+    # modello senza collo sono nelle coordinate del bbox, con il collo in
+    # quelle della testa.
+    righe.append("")
+    righe.append("  BONE_SHAPES attuali (head, tail):")
+    for osso in rig.data.bones:
+        righe.append("    %r: (%s, %s),"
+                     % (osso.name, _t(tpl(osso.head_local)), _t(tpl(osso.tail_local))))
+    righe.append("  ancore attuali (position di _TABELLA):")
+    for osso in rig.data.bones:
+        if osso.name in config.BODY_BONES:
+            continue
+        righe.append("    %r: %s," % (osso.name, _t(tpl(solver.bone_anchor(osso)))))
+
+
+def _roll(osso):
+    """Roll dell'osso come in Edit Mode, ricavato da matrix_local."""
+    asse_y = osso.matrix_local.col[1].xyz.normalized()
+    asse_z = osso.matrix_local.col[2].xyz
+    # z di riferimento senza roll: quella di vec_roll_to_mat3 con roll 0
+    rif = Matrix.Identity(3)
+    rot = Vector((0.0, 1.0, 0.0)).rotation_difference(asse_y).to_matrix()
+    z0 = rot @ rif.col[2]
+    angolo = z0.angle(asse_z, 0.0)
+    if z0.cross(asse_z).dot(asse_y) < 0.0:
+        angolo = -angolo
+    return angolo
+
+
 # --- operatore ---------------------------------------------------------------
 
 class FACEMOCAP_OT_diagnose_scene(bpy.types.Operator):
@@ -647,6 +910,8 @@ class FACEMOCAP_OT_diagnose_scene(bpy.types.Operator):
         _sezione_mesh(righe, dati, arm_obj)
         _sezione_ossa(righe, dati, arm_obj, mento)
         _sezione_isole(righe, dati, arm_obj)
+        _sezione_altre_armature(righe, context, arm_obj)
+        _sezione_profilo(righe, context, arm_obj)
         righe.append("")
         righe.append("fine report")
 
@@ -785,6 +1050,8 @@ def _leggi_ancore(rig):
     da_spostare = _ossa_da_spostare()
     ancore = {}
     for osso in rig.data.bones:
+        if osso.name in config.BODY_BONES:
+            continue
         esistente = osso.get("fm_anchor")
         if osso.name in da_spostare and esistente is not None and len(esistente) == 3:
             ancore[osso.name] = Vector(esistente)
@@ -826,15 +1093,15 @@ def _piano_riparazione(rig, box, ancore, sonda):
     dim = massimo - minimo
     avvisi = []
 
-    mancanti = [n for n in ("Eye_L", "Eye_R", "Mouth_Corner_L", "Mouth_Corner_R")
+    mancanti = [n for n in ("Eye.L", "Eye.R", "Mouth_Corner.L", "Mouth_Corner.R")
                 if n not in ancore]
     if mancanti:
         return None, avvisi, ("ossa di riferimento assenti nel rig: %s"
                               % ", ".join(mancanti))
 
-    z_occhi = (ancore["Eye_L"].z + ancore["Eye_R"].z) * 0.5
-    y_occhi = (ancore["Eye_L"].y + ancore["Eye_R"].y) * 0.5
-    z_angoli = (ancore["Mouth_Corner_L"].z + ancore["Mouth_Corner_R"].z) * 0.5
+    z_occhi = (ancore["Eye.L"].z + ancore["Eye.R"].z) * 0.5
+    y_occhi = (ancore["Eye.L"].y + ancore["Eye.R"].y) * 0.5
+    z_angoli = (ancore["Mouth_Corner.L"].z + ancore["Mouth_Corner.R"].z) * 0.5
 
     piano = {}
 
@@ -849,7 +1116,7 @@ def _piano_riparazione(rig, box, ancore, sonda):
     fuori_volume = []
     senza_normale = []
     for osso in rig.data.bones:
-        if osso.name in da_spostare:
+        if osso.name in da_spostare or osso.name in config.BODY_BONES:
             continue
         testa = osso.head_local.copy()
 
@@ -878,7 +1145,11 @@ def _piano_riparazione(rig, box, ancore, sonda):
 
     # 2. Head: diventa l'osso del cranio. La testa alla base del collo perche'
     #    e' li' il perno naturale attorno a cui la testa annuisce e ruota.
-    if "Head" in ancore:
+    #    Con l'osso Neck il collo c'e' gia' e Head parte dalla base del cranio:
+    #    rimetterlo sul fondo del bbox lo porterebbe sulle spalle.
+    if "Neck" in rig.data.bones:
+        avvisi.append("Head lasciato com'e': il rig ha l'osso Neck")
+    elif "Head" in ancore:
         y_asse = centro.y + PROFONDITA_ASSE_CRANIO * dim.y
         piano["Head"] = (
             Vector((0.0, y_asse, minimo.z + ALTEZZA_BASE_COLLO * dim.z)),
@@ -986,11 +1257,11 @@ def _applica_piano(context, rig, piano, ancore):
     for nome, ancora in ancore.items():
         rig.data.bones[nome]["fm_anchor"] = list(ancora)
 
-    # Eye_L/Eye_R sono pilotate in TRASLAZIONE dall'iride: se deformano la
+    # Eye.L/Eye.R sono pilotate in TRASLAZIONE dall'iride: se deformano la
     # pelle, muovere lo sguardo trascina l'occhio intero. I bulbi restano
     # legati a Head (vedi RIGID_ISLAND_BONE in core/weights.py).
     spente = []
-    for nome in ("Eye_L", "Eye_R"):
+    for nome in ("Eye.L", "Eye.R"):
         osso = rig.data.bones.get(nome)
         if osso is not None and osso.use_deform:
             osso.use_deform = False

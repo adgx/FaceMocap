@@ -125,12 +125,18 @@ class RetargetMap:
 #the dir key is the role 
 DEFAULT_RETARGET_MAP = {
     #to see the source LMK
+    #Neck e Head ricevono la stessa rotazione della testa: il gain e' la frazione
+    #dell'angolo che va a ciascun osso. Se DEF-Head e' figlio di DEF-Neck2 la
+    #rotazione totale e' la somma dei due gain (0.4 + 0.6 = 1); se non lo e',
+    #mettere Neck a 0 e Head a 1.
     "Neck": RetargetMap(source=("LMK-Face_oval3.R", "LMK-Face_oval3.L", "LMK-Face_oval1.L"),
                 target="DEF-Neck2",
-                mode=MotionMode.ROTATION),
+                mode=MotionMode.ROTATION,
+                gain=0.4),
     "Head": RetargetMap(source=("LMK-Face_oval3.R", "LMK-Face_oval3.L", "LMK-Face_oval1.L"),
                     target="DEF-Head",
-                    mode=MotionMode.ROTATION),
+                    mode=MotionMode.ROTATION,
+                    gain=0.6),
     "Jaw": RetargetMap(source=("LMK-Face_oval4.R", "LMK-Face_oval4.L", "LMK-Face_oval_chin"),
                     target="DEF-Jaw",
                     mode=MotionMode.ROTATION),
@@ -239,36 +245,109 @@ _EYE_L = ("Eyelid_Up.L", "Eyelid_Low.L")    # apertura occhio sinistro
 _EYE_R = ("Eyelid_Up.R", "Eyelid_Low.R")    # apertura occhio destro
 _MOUTH = ("Mouth_Corner.L", "Mouth_Corner.R")   # larghezza bocca
 
+# position = dove sta il landmark sul modello (l'ancora usata dal solver), in
+# coordinate normalizzate [-1, 1] sulle semi-dimensioni della mesh, con
+# l'origine nel centro del bbox alzato di GENERATOR_Z_OFFSET (vedi
+# "Genera Armatura su Modello"). Ricavate da FaceMocap_Rig, posizionato a mano
+# sul modello di riferimento e reso simmetrico.
 _TABELLA = {
-    "Head":           (1,   None, None,   (0.0,  0.0,  0.0),   1.0, None, MotionMode.HEAD),
-    # La mandibola e' pilotata in ROTAZIONE
-    "Jaw":            (152, 1,    "Head", (0.0,  0.30, 0.05),  1.0, None, MotionMode.RELATIVE),
+    # ancora sulla punta del naso (landmark 1): stimata, il naso e' il punto
+    # piu' avanzato del bbox; la geometria dell'osso e' in BONE_SHAPES
+    "Head":           (1,   None, None,   (0.0, -1.0, -0.42),      1.0, None, MotionMode.HEAD),
+    # La mandibola e' pilotata in ROTAZIONE: ancora sul mento (coda dell'osso)
+    "Jaw":            (152, 1,    "Head", (0.0, -0.72, -0.875),    1.0, None, MotionMode.RELATIVE),
 
     # centro dell'iride dell'occhio
-    "Eye.L":          (473, 1,    "Head", (0.2, -0.2,  0.2),   1.0, None, MotionMode.RELATIVE),
-    "Eye.R":          (468, 1,    "Head", (-0.2, -0.2,  0.2),  1.0, None, MotionMode.RELATIVE),
+    "Eye.L":          (473, 1,    "Head", (0.376, -0.599, -0.158), 1.0, None, MotionMode.RELATIVE),
+    "Eye.R":          (468, 1,    "Head", (-0.376, -0.599, -0.158), 1.0, None, MotionMode.RELATIVE),
 
     # Palpebre
-    "Eyelid_Up.L":    (386, 1,    "Head", (0.2, -0.22, 0.26),  1.15, _EYE_L, MotionMode.RELATIVE),
-    "Eyelid_Low.L":   (374, 1,    "Head", (0.2, -0.22, 0.14),  1.15, _EYE_L, MotionMode.RELATIVE),
-    "Eyelid_Up.R":    (159, 1,    "Head", (-0.2, -0.22, 0.26), 1.15, _EYE_R, MotionMode.RELATIVE),
-    "Eyelid_Low.R":   (145, 1,    "Head", (-0.2, -0.22, 0.14), 1.15, _EYE_R, MotionMode.RELATIVE),
+    "Eyelid_Up.L":    (386, 1,    "Head", (0.382, -0.638, -0.118),  1.15, _EYE_L, MotionMode.RELATIVE),
+    "Eyelid_Low.L":   (374, 1,    "Head", (0.373, -0.649, -0.188),  1.15, _EYE_L, MotionMode.RELATIVE),
+    "Eyelid_Up.R":    (159, 1,    "Head", (-0.382, -0.638, -0.118), 1.15, _EYE_R, MotionMode.RELATIVE),
+    "Eyelid_Low.R":   (145, 1,    "Head", (-0.373, -0.649, -0.188), 1.15, _EYE_R, MotionMode.RELATIVE),
 
-    "Brow.L":         (334, 1,    "Head", (0.2, -0.25, 0.4),   1.2, None, MotionMode.RELATIVE),
-    "Brow.R":         (105, 1,    "Head", (-0.2, -0.25, 0.4),  1.2, None, MotionMode.RELATIVE),
+    "Brow.L":         (334, 1,    "Head", (0.427, -0.638, -0.066),  1.2, None, MotionMode.RELATIVE),
+    "Brow.R":         (105, 1,    "Head", (-0.427, -0.638, -0.066), 1.2, None, MotionMode.RELATIVE),
 
     # Labbra: 5 punti di controllo per labbro (angolo, meta', centro, meta',
     # angolo).
-    "Lip_Upper":      (0,   1,    "Head", (0.0, -0.2, -0.24),       0.7, _MOUTH, MotionMode.RELATIVE),
-    "Lip_Upper.L":    (269, 1,    "Head", (0.08, -0.18, -0.26),     0.7, _MOUTH, MotionMode.RELATIVE),
-    "Lip_Upper.R":    (39,  1,    "Head", (-0.08, -0.18, -0.26),    0.7, _MOUTH, MotionMode.RELATIVE),
-    "Lip_Lower":      (17,  152,  "Jaw",  (0.0, -0.2, -0.36),       1.0, _MOUTH, MotionMode.RELATIVE),
-    "Lip_Lower.L":    (405, 152,  "Jaw",  (0.08, -0.18, -0.34),     1.0, _MOUTH, MotionMode.RELATIVE),
-    "Lip_Lower.R":    (181, 152,  "Jaw",  (-0.08, -0.18, -0.34),    1.0, _MOUTH, MotionMode.RELATIVE),
+    "Lip_Upper":      (0,   1,    "Head", (0.0, -0.789, -0.601),    0.7, _MOUTH, MotionMode.RELATIVE),
+    "Lip_Upper.L":    (269, 1,    "Head", (0.163, -0.776, -0.596),  0.7, _MOUTH, MotionMode.RELATIVE),
+    "Lip_Upper.R":    (39,  1,    "Head", (-0.163, -0.776, -0.596), 0.7, _MOUTH, MotionMode.RELATIVE),
+    "Lip_Lower":      (17,  152,  "Jaw",  (0.0, -0.806, -0.674),    1.0, _MOUTH, MotionMode.RELATIVE),
+    "Lip_Lower.L":    (405, 152,  "Jaw",  (0.146, -0.762, -0.669),  1.0, _MOUTH, MotionMode.RELATIVE),
+    "Lip_Lower.R":    (181, 152,  "Jaw",  (-0.146, -0.762, -0.669), 1.0, _MOUTH, MotionMode.RELATIVE),
 
-    "Mouth_Corner.L": (291, 152,  "Jaw",  (0.15, -0.15, -0.3),      1.0, _MOUTH, MotionMode.RELATIVE),
-    "Mouth_Corner.R": (61,  152,  "Jaw",  (-0.15, -0.15, -0.3),     1.0, _MOUTH, MotionMode.RELATIVE),
+    "Mouth_Corner.L": (291, 152,  "Jaw",  (0.28, -0.693, -0.626),   1.0, _MOUTH, MotionMode.RELATIVE),
+    "Mouth_Corner.R": (61,  152,  "Jaw",  (-0.28, -0.693, -0.626),  1.0, _MOUTH, MotionMode.RELATIVE),
 }
+
+# Geometria (testa, coda) delle ossa generate, stesse coordinate di _TABELLA.
+# Le code corte e rivolte dentro il volume danno pesi locali al bone heat.
+# Head va dalla base del collo alla cima del cranio, Jaw dal perno al mento.
+BONE_SHAPES = {
+    "Head":           ((0.0, 0.2, -1.2),        (0.0, 0.2, 0.4)),
+    "Jaw":            ((0.0, 0.16, -0.298),     (0.0, -0.72, -0.875)),
+    "Eye.L":          ((0.376, -0.599, -0.158), (0.334, -0.538, -0.146)),
+    "Eye.R":          ((-0.376, -0.599, -0.158), (-0.334, -0.538, -0.146)),
+    "Eyelid_Up.L":    ((0.382, -0.638, -0.118), (0.403, -0.658, -0.065)),
+    "Eyelid_Up.R":    ((-0.382, -0.638, -0.118), (-0.403, -0.658, -0.065)),
+    "Eyelid_Low.L":   ((0.373, -0.649, -0.188), (0.35, -0.582, -0.2)),
+    "Eyelid_Low.R":   ((-0.373, -0.649, -0.188), (-0.35, -0.582, -0.2)),
+    "Brow.L":         ((0.427, -0.638, -0.066), (0.405, -0.583, -0.1)),
+    "Brow.R":         ((-0.427, -0.638, -0.066), (-0.405, -0.583, -0.1)),
+    "Lip_Upper":      ((0.0, -0.789, -0.601),   (0.0, -0.788, -0.543)),
+    "Lip_Upper.L":    ((0.163, -0.776, -0.596), (0.113, -0.72, -0.585)),
+    "Lip_Upper.R":    ((-0.163, -0.776, -0.596), (-0.113, -0.72, -0.585)),
+    "Lip_Lower":      ((0.0, -0.806, -0.674),   (0.0, -0.736, -0.665)),
+    "Lip_Lower.L":    ((0.146, -0.762, -0.669), (0.11, -0.699, -0.657)),
+    "Lip_Lower.R":    ((-0.146, -0.762, -0.669), (-0.11, -0.699, -0.657)),
+    "Mouth_Corner.L": ((0.28, -0.693, -0.626),  (0.302, -0.654, -0.647)),
+    "Mouth_Corner.R": ((-0.28, -0.693, -0.626), (-0.302, -0.654, -0.647)),
+}
+
+# Ossa che non deformano la mesh: gli occhi sono pilotati in traslazione
+# dall'iride, se deformassero la pelle lo sguardo trascinerebbe la palpebra.
+NON_DEFORM_BONES = {"Eye.L", "Eye.R"}
+
+# Il generatore centra l'armatura nel bbox della mesh alzato di questa
+# frazione dell'altezza: la cima della mesh sta a z = 1 - 2 * offset.
+GENERATOR_Z_OFFSET = 0.15
+
+# Modelli con collo (core/head_measure.py): il template si normalizza sulla
+# testa misurata invece che sul bbox, che con collo e spalle e' dominato dal busto.
+# Profondita'/larghezza del bbox del modello di riferimento: sul template la
+# scala in Y e' questa frazione di quella in X.
+GENERATOR_REF_ASPECT_YX = 0.97
+# Mento = prima quota sotto il naso dove il bordo anteriore arretra di almeno
+# questa frazione della larghezza della testa. Labbra e mento restano entro
+# ~0.15, la gola sta oltre ~0.45.
+GENERATOR_CHIN_RECESS = 0.30
+# Collo riconosciuto se sotto il mento c'e' almeno questa frazione dell'altezza
+# della testa (mento -> cima). Il modello di riferimento ne ha ~0.27.
+GENERATOR_MIN_NECK = 0.35
+# Sfumatura dei pesi di Neck e Chest dopo il collegamento: sopra il mento
+# valgono zero, e tornano pieni a questa frazione dell'altezza della testa
+# sotto il mento. Senza, il bone heat da' al collo parte di labbra e mento, che
+# allora seguono la mandibola solo in parte.
+BODY_WEIGHT_FADE = 0.10
+# Altezza delle fasce del profilo, in frazione dell'altezza della mesh.
+GENERATOR_BAND = 0.02
+# Base del collo: la prima fascia sotto la strozzatura larga questo multiplo di essa.
+GENERATOR_NECK_FLARE = 1.3
+# Head quando c'e' il collo, nelle coordinate di BONE_SHAPES: dalla base del
+# cranio in su, invece che dal fondo del bbox.
+NECK_HEAD_SHAPE = ((0.0, 0.4, -0.6), (0.0, 0.2, 0.4))
+# Frazione della rotazione della testa data a Neck. Head e' suo figlio e prende
+# il resto, quindi la rotazione totale non cambia: cambia dove si piega.
+NECK_ROT_SHARE = 0.4
+# Frazione data a Chest, la radice: fa seguire la testa anche al collo basso e
+# all'inizio delle spalle. Head prende 1 - CHEST - NECK.
+CHEST_ROT_SHARE = 0.15
+# Ossa del corpo create sui modelli con collo. Il tracking le muove solo in
+# rotazione (le quote qui sopra) e Ripara Armatura non le tocca.
+BODY_BONES = ("Chest", "Neck")
 
 #landmark mapping (source skeleton)
 LANDMARKS_MAP = {
@@ -465,7 +544,7 @@ FACE_MAPPING = {nome: BoneMap(*riga) for nome, riga in _TABELLA.items()}
 LANDMARKERS_FACE_MAPPING = {nome: BoneMap(*riga) for nome, riga in _LANDMARKS_BONES_LUT.items()}
 #ossa per la rotazione della mandibola con centro di rotazione all'altezza delle orecchie
 ROTATION_BONES = {
-    "Jaw": ((0.0, 0.30, 0.05), (0.0, -0.15, -0.55)),
+    "Jaw": BONE_SHAPES["Jaw"],
 }
 
 LM_SIDE_R   = 234   # bordo guancia destra del soggetto
@@ -476,12 +555,64 @@ LM_NASION   = 168   # radice del naso, tra gli occhi
 MIN_PAIR_DIST = 0.01
 
 # Ampiezze tarate a mano su modello e webcam di riferimento.
-AMPLITUDE   = 0.50   # moltiplicatore globale delle espressioni facciali (non la testa)
-MOUTH_GAIN  = 0.60   # Jaw, Lip_Upper*, Lip_Lower*, Mouth_Corner_*
+# Con 1.0 lo spostamento dei landmark e' riportato 1:1 sulle proporzioni del rig.
+AMPLITUDE   = 1.00   # moltiplicatore globale delle espressioni facciali (non la testa)
+MOUTH_GAIN  = 0.5    # Lip_Upper*, Lip_Lower*, Mouth_Corner_*: scala le labbra insieme
+# Apertura della mandibola, separata dalle labbra: con MOUTH_GAIN a 0.5 la
+# bocca spalancata ruotava Jaw di soli 6-7 gradi. 1.5 porta a ~20 gradi;
+# il tetto resta MAX_JAW_ANGLE.
+JAW_GAIN    = 1.25   # 1.5 apriva leggermente troppo
+# Angoli della bocca, separati dalle labbra: con MOUTH_GAIN a 0.5 il bacio
+# stringeva la bocca di Steve del 10% contro il 20% misurato. 1.0 = movimento
+# reale. Vale anche per il sorriso, che si allarga di piu'.
+MOUTH_CORNER_GAIN = 1.0
 EYE_GAIN    = 1.00   # Eye_L/R, Eyelid_Up/Low_L/R
-BROW_GAIN   = 0.75   # Brow_L/R
-HEAD_GAIN   = 0.50   # traslazione e rotazione di Head
-SMOOTHING   = 0.6   # alpha del filtro anti-jitter
+BROW_GAIN   = 0.375  # Brow_L/R (stessa ampiezza di prima, quando AMPLITUDE era 0.5)
+HEAD_GAIN   = 0.50   # traslazione di Head
+HEAD_ROT_GAIN = 1.00 # rotazione di Head: la matrice di posa di MediaPipe e' gia' in scala reale
+
+# Larghezza del viso (landmark 234-454) del modello canonico MediaPipe, in cm:
+# converte la traslazione della matrice di posa in larghezze di viso.
+FACE_WIDTH_CM = 15.0
+
+# Blendshape MediaPipe (punteggi 0..1). Valore del punteggio che vale "movimento
+# completo"; lo zero e' il valore misurato in calibrazione a viso rilassato.
+BLENDSHAPE_FULL = {
+    "eyeBlinkLeft":   0.60,   # misurato: a occhio chiuso il punteggio arriva a ~0.6-0.67
+    "eyeBlinkRight":  0.60,
+    "eyeWideLeft":    0.60,
+    "eyeWideRight":   0.60,
+    "eyeSquintLeft":  0.60,
+    "eyeSquintRight": 0.60,
+    "jawOpen":        0.70,   # solo per il log: la mandibola segue i landmark del mento
+}
+# True se occhiolino sinistro chiude l'occhio destro del modello (Mirror X spento).
+BLENDSHAPE_SWAP_LR = False
+
+# Corsa delle palpebre, in frazione dell'apertura dell'occhio del rig
+# (distanza Eyelid_Up - Eyelid_Low a riposo).
+EYELID_UPPER_CLOSE  = 0.70   # palpebra superiore a occhio chiuso (0.55 lasciava l'occhio socchiuso)
+EYELID_LOWER_CLOSE  = 0.15   # palpebra inferiore a occhio chiuso
+EYELID_UPPER_WIDE   = 0.25   # sollevamento a occhi sgranati
+EYELID_LOWER_SQUINT = 0.15   # sollevamento della palpebra inferiore strizzando
+
+# Pesi delle palpebre, disegnati sulla geometria al click di Collega Manualmente
+# (il bone heat non e' affidabile sulle palpebre): una fascia lungo la
+# palpebra, piena al centro e a zero fuori, con le altre ossa ridotte di
+# conseguenza.
+EYELID_SPREAD_RADIUS  = 0.28   # semi-larghezza della palpebra, in frazione della distanza fra gli occhi
+EYELID_CORNER_DROP    = 0.35   # quanto si muovono meno gli angoli: 0 = come il centro, 1 = fermi
+EYELID_SPREAD_HEIGHT  = 0.12   # meta' altezza della fascia pesata attorno all'osso, stessa unita' di RADIUS
+
+# Stampa in console, una volta al secondo, angoli della testa e blendshape.
+DEBUG_MOCAP_LOG = True
+
+
+# parametri per filtro 1Euro
+ONE_EURO_MIN_CUTOFF = 1.0  # in Hz. Più basso = più smoothing da fermo, più lag sui movimenti
+# Più alto = meno lag sui movimenti rapidi, più rumore residuo.
+# La velocità è misurata in larghezze-viso/s (traslazioni) e rad/s (rotazioni).
+ONE_EURO_BETA = 3.0
 
 CALIBRATION_FRAMES = 30
 HEAD_DEPTH_GAIN = 1.0
@@ -490,4 +621,4 @@ MAX_FEATURE_SCALE = 4.0
 MIN_LEVER_DOWN = 0.3
 
 #apertura massima della mandibola in gradi
-MAX_JAW_ANGLE = 40.0
+MAX_JAW_ANGLE = 30.0

@@ -30,12 +30,20 @@ class HeadFrame:
     rotation: Matrix
     scale: float
 
+CAMERA_TO_IMAGE = Matrix(((1.0, 0.0, 0.0),
+                          (0.0, -1.0, 0.0),
+                          (0.0, 0.0, -1.0)))
+
 @dataclass(frozen=True)
 class SourcePose:
     local: dict
     origin: Vector
     scale: float
     head_rotation: Matrix
+    # Dalla matrice di posa MediaPipe, None se non disponibile.
+    pose_rotation: Matrix | None = None
+    pose_translation: Vector | None = None
+    blendshapes: dict | None = None
 
 
 #ok
@@ -109,6 +117,44 @@ def head_rotation_matrix(rot_neutral, rot_current):
     relative = rot_neutral.transposed() @ rot_current
     return HEAD_TO_BLENDER @ relative @ HEAD_TO_BLENDER.transposed()
 
+def pose_from_matrix(mat):
+    """Matrice 4x4 di MediaPipe -> (rotazione ortonormale, traslazione in cm), o None."""
+    if mat is None:
+        return None
+    m = Matrix([[float(mat[r][c]) for c in range(4)] for r in range(4)])
+    # traslazione nell'ultima riga invece che nell'ultima colonna: e' trasposta
+    if m.col[3].xyz.length < 1e-6 and m.row[3].xyz.length > 1e-6:
+        m.transpose()
+    rot = m.to_3x3().normalized().to_quaternion().to_matrix()
+    return rot, m.translation.copy()
+
+def pose_rotation_matrix(pose_neutral, pose_current, frame_neutral):
+    """Rotazione della testa dalla matrice di posa MediaPipe, in assi armatura."""
+    rel_camera = pose_current @ pose_neutral.transposed()
+    rel_image = CAMERA_TO_IMAGE @ rel_camera @ CAMERA_TO_IMAGE
+    rel_local = frame_neutral.transposed() @ rel_image @ frame_neutral
+    return head_local_rotation_to_blender(rel_local)
+
+def blendshape_amount(scores, neutral, name, full):
+    """Punteggio del blendshape riportato a 0 (viso neutro) .. 1 (movimento completo)."""
+    score = scores.get(name)
+    if score is None:
+        return 0.0
+    base = neutral.get(name, 0.0)
+    span = full - base
+    if span < 1e-3:
+        return 0.0
+    return min(max((score - base) / span, 0.0), 1.0)
+
+def bone_pose_rotation(pose_bone):
+    """Rotazione di posa dell'osso (quaternione) espressa in assi armatura."""
+    rest = pose_bone.bone.matrix_local.to_3x3()
+    return rest @ pose_bone.rotation_quaternion.to_matrix() @ rest.inverted()
+
+def head_local_rotation_to_blender(rot):
+    """Rotazione espressa nel frame testa-locale -> assi armatura."""
+    return HEAD_TO_BLENDER @ rot @ HEAD_TO_BLENDER.transposed()
+
 def head_local_to_blender(vec, mirror_x=False):
     """Vettore dal frame testa-locale agli assi armatura."""
     out = HEAD_TO_BLENDER @ vec
@@ -125,6 +171,15 @@ def bone_anchor(bone):
     return Vector(anchor)
 
 
+def mapping_for_armature(armature):
+    """Mapping ossa->landmark adatto al rig: quello dei landmark per il source rig
+    avanzato (riconosciuto dall'osso LMK-Root, quindi anche se rinominato),
+    altrimenti quello del rig base."""
+    if armature.name == LANDMARKS_RIG_NAME or "LMK-Root" in armature.pose.bones:
+        return LANDMARKERS_FACE_MAPPING
+    return FACE_MAPPING
+
+
 def solve_unit_scale(armature, neutral_local, details=None):
     """Quante unita' Blender vale una larghezza di viso su QUESTO rig.
 
@@ -133,11 +188,7 @@ def solve_unit_scale(armature, neutral_local, details=None):
     di conversione. Cosi' l'ampiezza e' corretta su qualunque modello, senza
     numeri da modificare a mano.
     """
-    #to-do: replace it with a function
-    if armature.name in LANDMARKS_RIG_NAME:
-        mapping = LANDMARKERS_FACE_MAPPING
-    else: 
-        mapping = FACE_MAPPING
+    mapping = mapping_for_armature(armature)
     names = [n for n in mapping if n in armature.pose.bones]
     ratios = []
 
@@ -174,10 +225,7 @@ def solve_unit_scale(armature, neutral_local, details=None):
 
 def solve_bone_scales(armature, neutral_local, global_scale, details=None):
     """Scala di conversione per ogni osso, in unita' Blender per larghezza viso."""
-    if armature.name in LANDMARKS_RIG_NAME:
-        mapping = LANDMARKERS_FACE_MAPPING
-    else: 
-        mapping = FACE_MAPPING
+    mapping = mapping_for_armature(armature)
 
     scales = {}
     for name, data in mapping.items():

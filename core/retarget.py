@@ -1,4 +1,6 @@
 from . import solver
+import time
+from mathutils import Vector, Quaternion, Matrix
 
 from dataclasses import dataclass
 
@@ -6,7 +8,7 @@ from .config import MotionMode, MappingRuntime, CALIBRATION_FRAMES, LANDMARKS_MA
 from .rig import reset_rig_pose, apply_rotation, apply_translation
 from .solver import HeadFrame
 from ..operators.diagnostics import stampa_tabella_scale
-from mathutils import Quaternion, Vector, Matrix
+from .one_euro_filter import OneEuroFilter, OneEuroFilterQuaternion
 
 class RetargetSolver:
     def __init__(self) -> None:
@@ -15,19 +17,23 @@ class RetargetSolver:
         self._calib_origin = Vector((0.0, 0.0, 0.0))
         self._calib_scale = 0.0
         self._calib_quats = []
+        self._calib_pose_quats = []
+        self._calib_pose_t = Vector((0.0, 0.0, 0.0))
+        self._calib_blendshapes = {}
+        self._calib_blendshape_count = 0
 
-        self._neutral = {}
+        self._neutral = None
         self._unit_scale = None
         self._bone_scales = {}
-        self._smoothed = {}
-        self._smoothed_rot = {}
         self._warned_bones = set()
-        self._smoothed_quat = Quaternion((1.0, 0.0, 0.0, 0.0))
         self._neutral_rot = None
-        self.previous = {}
+        self._neutral_pose_rot = None
+        self._neutral_pose_t = None
+        self._neutral_blendshapes = {}
+        self._filters = {}
 
     def clear(self):
-        self.previous.clear()
+        self._filters.clear()
         self.neutral_head_rotation = None
         self.neutral_head_scale = 1.0
 
@@ -59,29 +65,6 @@ class RetargetSolver:
 
         return res / len(vals)
 
-    def smooth_vector(self, key, val, smoothing):
-        alpha = 1.0 - max(0.0, min (0.999, smoothing))
-        previous = self.previous.get(key)
-
-        if previous is None:
-            res = val.copy()
-        else:
-            res = previous.lerp(val, alpha)
-        self.previous[key] = res.copy()
-
-        return res
-
-    def smooth_quaternion(self, key, val, smoothing):
-        alpha = 1.0 - max(0.0, min (0.999, smoothing))
-        previous = self.previous.get(key)
-
-        if previous is None:
-            res = val.copy()
-        else:
-            res = previous.slerp(val, alpha)
-        self.previous[key] = res.copy()
-
-        return res
     
     def solve_translation(self, source_pose, mapping, mirror: bool = False):
         delta = self.average_delta(source_pose=source_pose, source_bones=mapping.source)
@@ -89,16 +72,38 @@ class RetargetSolver:
         if delta is None:
             return None
 
-        delta *= mapping.gain
+        return solver.head_local_to_blender(delta, mirror) * self._translation_factor(mapping)
 
-        return solver.head_local_to_blender(delta, mirror)*self._bone_scales.get(mapping.source[0])
+    def _translation_factor(self, mapping):
+        """Unita' armatura per larghezza viso dell'osso sorgente, gain incluso.
+        Se l'osso non ha una scala propria si usa quella globale del rig."""
+        return mapping.gain * self._bone_scales.get(mapping.source[0], self._unit_scale)
 
-    def solve_head_rotation(self, source_pose):
+    def _filter(self, key, filter_cls, settings):
+        """Filtro 1Euro associato alla chiave, con i parametri correnti della UI."""
+        flt = self._filters.get(key)
+        if flt is None:
+            flt = self._filters[key] = filter_cls()
+        flt.min_cutoff = settings.min_cutoff
+        flt.beta = settings.beta
+        return flt
+
+    def head_rotation(self, source_pose):
+        """Rotazione della testa rispetto alla posa neutra, in assi armatura.
+        Usa la matrice di posa MediaPipe se c'e', altrimenti i landmark."""
         if self._neutral_rot is None:
             return Matrix.Identity(3)
-        return solver.relative_rotation(source_pose.head_rotation, self._neutral_rot)
+        if self._neutral_pose_rot is not None and source_pose.pose_rotation is not None:
+            return solver.pose_rotation_matrix(self._neutral_pose_rot,
+                                               source_pose.pose_rotation,
+                                               self._neutral_rot)
+        return solver.head_rotation_matrix(self._neutral_rot, source_pose.head_rotation)
 
-    def solve_jaw_rotation(self, source_pose, source_bones):
+    def solve_head_rotation(self, source_pose, mirror: bool = False):
+        rot = self.head_rotation(source_pose)
+        return solver.mirror_rotation(rot) if mirror else rot
+
+    def solve_jaw_rotation(self, source_pose, source_bones, mirror: bool = False):
         curr = []
         neutral = []
 
@@ -133,10 +138,14 @@ class RetargetSolver:
         if neutral_frame is None:
             return Matrix.Identity(3)
 
-        return solver.relative_rotation(curr_frame, neutral_frame)
+        # delta nel frame testa-locale -> assi armatura
+        rot = solver.head_local_rotation_to_blender(solver.relative_rotation(curr_frame, neutral_frame))
+        return solver.mirror_rotation(rot) if mirror else rot
 
-    def solve(self, source_rig, source_pose, mappings: list[MappingRuntime], smoothing, mirror):
+    def solve(self, source_rig, source_pose, mappings: list[MappingRuntime], settings, t_now=None):
         res = {}
+        if t_now is None:
+            t_now = time.perf_counter()
 
         for mapping in mappings:
             if not mapping.enable:
@@ -148,21 +157,30 @@ class RetargetSolver:
             pose_bone = (source_rig.pose.bones.get(mapping.source[0]))
 
             if mode == MotionMode.TRANSLATION.value:
-                val = self.solve_translation(source_pose, mapping, mirror)
+                val = self.solve_translation(source_pose, mapping, settings.mirror_x)
 
                 if val is None:
                     continue
 
-                val = self.smooth_vector(mapping.role, val, smoothing)
+                flt = self._filter(mapping.role, OneEuroFilter, settings)
+                flt.velocity_scale = self._translation_factor(mapping)
+                val = flt.filter(val, t_now)
+
                 res[mapping.role] = ("TRANSLATION", val)
-                apply_translation(pose_bone, val)
+                if pose_bone:
+                    apply_translation(pose_bone, val)
             elif mode == MotionMode.ROTATION.value:
                 if mapping.role == "Jaw":
-                    rotation = (self.solve_jaw_rotation(source_pose, mapping.source))
+                    rotation = self.solve_jaw_rotation(source_pose, mapping.source, settings.mirror_x)
                 else: 
-                    rotation = (self.solve_head_rotation(source_pose))
-                rotation = (rotation.to_quaternion())
-                rotation = (self.smooth_quaternion(mapping.role, rotation, smoothing))
+                    rotation = self.solve_head_rotation(source_pose, settings.mirror_x)
+                rotation = rotation.to_quaternion()
+                # il gain scala l'angolo (es. ripartizione fra Neck e Head)
+                if abs(mapping.gain - 1.0) > 1e-6:
+                    axis, angle = rotation.to_axis_angle()
+                    rotation = Quaternion(axis, angle * mapping.gain)
+
+                rotation = self._filter(mapping.role, OneEuroFilterQuaternion, settings).filter(rotation, t_now)
                 res[mapping.role] = ("ROTATION", rotation)
 
         return res
@@ -175,19 +193,22 @@ class RetargetSolver:
         self._calib_origin = Vector((0.0, 0.0, 0.0))
         self._calib_scale = 0.0
         self._calib_quats = []
+        self._calib_pose_quats = []
+        self._calib_pose_t = Vector((0.0, 0.0, 0.0))
+        self._calib_blendshapes = {}
+        self._calib_blendshape_count = 0
 
         self._neutral = None
         self._unit_scale = None
         self._bone_scales = {}
-        self._smoothed = {}
-        self._smoothed_rot = {}
-        self._warned_bones = set()
-        self._smoothed_quat = Quaternion((1.0, 0.0, 0.0, 0.0))
+        
+        self._filters = {}
 
-        reset_rig_pose(rig)
+        if rig:
+            reset_rig_pose(rig)
 
     #move to retarget class
-    def accumulate_calibration(self, local, head_frame: HeadFrame) -> None:
+    def accumulate_calibration(self, local, head_frame: HeadFrame, source_pose=None) -> None:
         for idx, vec in local.items():
             if idx in self._calib_sum:
                 self._calib_sum[idx] += vec
@@ -202,6 +223,14 @@ class RetargetSolver:
             quat.negate()
         self._calib_quats.append(quat)
 
+        if source_pose is not None and source_pose.pose_rotation is not None:
+            self._calib_pose_quats.append(source_pose.pose_rotation.to_quaternion())
+            self._calib_pose_t += source_pose.pose_translation
+        if source_pose is not None and source_pose.blendshapes:
+            for name, score in source_pose.blendshapes.items():
+                self._calib_blendshapes[name] = self._calib_blendshapes.get(name, 0.0) + score
+            self._calib_blendshape_count += 1
+
         self._calib_left -= 1
 
     def finish_calibration(self, rig) -> bool:
@@ -213,15 +242,18 @@ class RetargetSolver:
         self._neutral_origin = self._calib_origin / count
         self._neutral_scale = self._calib_scale / count
 
-        avg = Quaternion((0.0, 0.0, 0.0, 0.0))
-        for quat in self._calib_quats:
-            avg.w += quat.w
-            avg.x += quat.x
-            avg.y += quat.y
-            avg.z += quat.z
+        self._neutral_rot = _average_rotation(self._calib_quats)
 
-        avg.normalize()
-        self._neutral_rot = avg.to_matrix()
+        self._neutral_pose_rot = None
+        self._neutral_pose_t = None
+        if self._calib_pose_quats:
+            self._neutral_pose_rot = _average_rotation(self._calib_pose_quats)
+            self._neutral_pose_t = self._calib_pose_t / len(self._calib_pose_quats)
+
+        self._neutral_blendshapes = {}
+        if self._calib_blendshape_count:
+            self._neutral_blendshapes = {name: total / self._calib_blendshape_count
+                                         for name, total in self._calib_blendshapes.items()}
 
         dett_unit = {}
         self._unit_scale = solver.solve_unit_scale(rig, self._neutral, dett_unit)
@@ -235,3 +267,18 @@ class RetargetSolver:
         stampa_tabella_scale(self._unit_scale, dett_unit, dett_scale)
 
         return True
+
+
+def _average_rotation(quats):
+    """Media di rotazioni vicine fra loro, come matrice 3x3."""
+    avg = Quaternion((0.0, 0.0, 0.0, 0.0))
+    for quat in quats:
+        if quat.dot(quats[0]) < 0.0:
+            quat = -quat
+        avg.w += quat.w
+        avg.x += quat.x
+        avg.y += quat.y
+        avg.z += quat.z
+
+    avg.normalize()
+    return avg.to_matrix()
